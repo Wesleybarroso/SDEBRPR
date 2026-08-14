@@ -139,3 +139,5 @@
 - [x] Validar a exportação em desktop e mobile e cobrir o contrato com testes
 
 - [x] Refinar navegação lateral do SDEBR com marca, estados ativos, espaçamento e responsividade mais profissionais
+
+- [x] Refinar o card de geração de modelos por IA com melhor contraste, hierarquia visual e responsividade
