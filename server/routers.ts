@@ -63,12 +63,12 @@ export const appRouter = router({
       if (db) await db.insert(leadQualifications).values({ leadId: input.id, score, status, reason, model: OPENROUTER_MODEL });
       return result;
     }),
-    exportCsv: protectedProcedure.input(z.object({ minScore: z.number().default(70) })).query(async ({ input }) => {
-      const rows = await listLeads({ minScore: input.minScore, whatsapp: "valid" });
+    exportCsv: protectedProcedure.input(z.object({ minScore: z.number().default(70), whatsapp: z.enum(["all", "valid", "invalid", "pending"]).default("valid") })).query(async ({ input }) => {
+      const rows = await listLeads({ minScore: input.minScore, whatsapp: input.whatsapp === "all" ? undefined : input.whatsapp });
       const header = ["nome", "telefone", "categoria", "cidade", "estado", "score", "status", "site", "endereco"];
       const escape = (value: unknown) => `"${String(value ?? "").replaceAll('"', '""')}"`;
-      const csv = [header.join(","), ...rows.map(row => [row.name, row.phone, row.category, row.city, row.state, row.qualificationScore, row.qualificationStatus, row.website, row.address].map(escape).join(","))].join("\n");
-      return { filename: `leadflow-melhores-leads-${new Date().toISOString().slice(0, 10)}.csv`, csv };
+      const csv = [header.join(";"), ...rows.map(row => [row.name, row.phone, row.category, row.city, row.state, row.qualificationScore, row.qualificationStatus, row.website, row.address].map(escape).join(";"))].join("\n");
+      return { filename: `sdebr-melhores-leads-score-${input.minScore}-${new Date().toISOString().slice(0, 10)}.csv`, csv: `\ufeff${csv}`, count: rows.length, minScore: input.minScore };
     }),
   }),
   whatsapp: router({

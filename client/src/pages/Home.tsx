@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Search, MapPin, Users, ShieldCheck, Sparkles, Download, Play, ArrowUpRight, Loader2, CheckCircle2, Clock3, XCircle } from "lucide-react";
+import { Search, MapPin, Users, ShieldCheck, Sparkles, Download, Play, ArrowUpRight, Loader2, CheckCircle2, Clock3, XCircle, FileSpreadsheet } from "lucide-react";
 import { toast } from "sonner";
 
 function WhatsappBadge({ value }: { value: boolean | null | undefined }) {
@@ -23,13 +23,15 @@ export default function Home() {
   const [niche, setNiche] = useState("");
   const [whatsapp, setWhatsapp] = useState<"all" | "valid" | "invalid" | "pending">("all");
   const [minScore, setMinScore] = useState("0");
+  const [exportScore, setExportScore] = useState("70");
+  const [exportWhatsapp, setExportWhatsapp] = useState<"all" | "valid" | "invalid" | "pending">("valid");
   const [form, setForm] = useState({ niche: "", city: "", state: "", region: "", cep: "", leadLimit: 50 });
 
   const metrics = trpc.dashboard.metrics.useQuery(undefined, { retry: false });
   const leads = trpc.leads.list.useQuery({ search: search || undefined, city: city || undefined, state: state || undefined, region: region || undefined, niche: niche || undefined, whatsapp: whatsapp === "all" ? undefined : whatsapp, minScore: Number(minScore) || undefined }, { retry: false });
   const createSearch = trpc.searches.create.useMutation({ onSuccess: result => toast.success(result.message), onError: error => toast.error(error.message) });
   const qualify = trpc.leads.qualify.useMutation({ onSuccess: () => { toast.success("Lead qualificado com IA"); leads.refetch(); metrics.refetch(); }, onError: error => toast.error(error.message) });
-  const exportCsv = trpc.leads.exportCsv.useQuery({ minScore: 70 }, { enabled: false });
+  const exportCsv = trpc.leads.exportCsv.useQuery({ minScore: Number(exportScore), whatsapp: exportWhatsapp }, { enabled: false });
 
   const rows = useMemo(() => (leads.data ?? []).slice(0, 8), [leads.data]);
   const data = metrics.data ?? { total: 0, whatsappValid: 0, qualified: 0, ready: 0, validRate: 0 };
@@ -43,17 +45,33 @@ export default function Home() {
 
   async function downloadCsv() {
     const result = await exportCsv.refetch();
-    if (!result.data) return toast.error("Não foi possível gerar o CSV.");
+    if (result.error) return toast.error("Não foi possível gerar a exportação. Tente novamente.");
+    if (!result.data || result.data.count === 0) return toast.info(`Nenhum lead com WhatsApp ${exportWhatsapp === "all" ? "em qualquer status" : exportWhatsapp} e score mínimo de ${exportScore} foi encontrado.`);
     const blob = new Blob([result.data.csv], { type: "text/csv;charset=utf-8" });
     const url = URL.createObjectURL(blob);
-    const link = document.createElement("a"); link.href = url; link.download = result.data.filename; link.click(); URL.revokeObjectURL(url);
+    const link = document.createElement("a"); link.href = url; link.download = result.data.filename; document.body.appendChild(link); link.click(); link.remove(); URL.revokeObjectURL(url);
+    toast.success(`${result.data.count} lead(s) exportado(s) com score mínimo de ${exportScore}.`);
   }
 
   return <DashboardLayout>
     <div className="min-h-screen bg-background px-5 py-6 text-foreground md:px-8">
       <header className="mb-8 flex flex-col justify-between gap-4 md:flex-row md:items-end">
         <div><p className="mb-2 text-[11px] font-semibold uppercase tracking-[0.24em] text-primary">SDEBR / Central operacional</p><h1 className="font-serif text-4xl tracking-tight text-foreground">Prospecção com clareza.</h1><p className="mt-2 max-w-xl text-sm text-muted-foreground">Capture sinais de intenção, valide contatos e concentre energia nos leads que merecem uma conversa.</p></div>
-        <div className="flex items-center gap-3"><div className="rounded-full border border-border bg-white px-3 py-2 text-xs text-muted-foreground"><span className="mr-2 inline-block h-2 w-2 rounded-full bg-emerald-500" />Sistema conectado</div><Button onClick={downloadCsv} variant="outline" className="border-border bg-white text-foreground hover:bg-indigo-50"><Download className="mr-2 h-4 w-4" />Exportar melhores</Button></div>
+        <div className="flex w-full flex-wrap items-center gap-2 md:w-auto">
+          <div className="rounded-full border border-border bg-white px-3 py-2 text-xs text-muted-foreground"><span className="mr-2 inline-block h-2 w-2 rounded-full bg-emerald-500" />Sistema conectado</div>
+          <div className="flex w-full flex-wrap items-center gap-1.5 rounded-xl border border-border bg-white p-1.5 shadow-sm sm:w-auto">
+            <label className="hidden pl-2 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground sm:block">Score mínimo</label>
+            <Select value={exportScore} onValueChange={setExportScore}>
+              <SelectTrigger aria-label="Score mínimo" className="h-9 w-[86px] border-0 bg-transparent text-xs shadow-none focus:ring-0 sm:w-[112px]"><SelectValue /></SelectTrigger>
+              <SelectContent><SelectItem value="70">70+ Bons</SelectItem><SelectItem value="80">80+ Fortes</SelectItem><SelectItem value="90">90+ Top</SelectItem></SelectContent>
+            </Select>
+            <Select value={exportWhatsapp} onValueChange={value => setExportWhatsapp(value as typeof exportWhatsapp)}>
+              <SelectTrigger aria-label="Status do WhatsApp" className="h-9 w-[92px] border-0 bg-transparent text-xs shadow-none focus:ring-0 sm:w-[132px]"><SelectValue /></SelectTrigger>
+              <SelectContent><SelectItem value="valid">Válidos</SelectItem><SelectItem value="all">Todos</SelectItem><SelectItem value="pending">Pendentes</SelectItem><SelectItem value="invalid">Inválidos</SelectItem></SelectContent>
+            </Select>
+            <Button onClick={downloadCsv} disabled={exportCsv.isFetching} size="sm" className="h-9 flex-1 bg-indigo-600 text-white shadow-sm hover:bg-indigo-500 sm:flex-none">{exportCsv.isFetching ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <FileSpreadsheet className="mr-2 h-4 w-4" />}{exportCsv.isFetching ? "Preparando…" : "Exportar leads"}</Button>
+          </div>
+        </div>
       </header>
 
       {(metrics.isLoading || leads.isLoading) && <div className="mb-5 rounded-xl border border-border bg-white px-4 py-3 text-sm text-muted-foreground">Atualizando a operação…</div>}

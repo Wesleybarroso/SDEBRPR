@@ -134,3 +134,6 @@
 - [x] Testar a procedure de IA e validar a interface em desktop e mobile
 
 - [x] Remover a barra lateral visual e aplicar rolagem suave sem bloquear o scroll em desktop e mobile
+
+- [x] Corrigir “Exportar melhores” com filtros de score e WhatsApp, CSV profissional e estados de sucesso/erro
+- [x] Validar a exportação em desktop e mobile e cobrir o contrato com testes
