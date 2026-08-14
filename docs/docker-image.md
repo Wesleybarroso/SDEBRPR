@@ -56,14 +56,14 @@ A instalação externa precisa fornecer pelo menos o banco, a sessão e os servi
 | `DATABASE_URL` | Conexão com MySQL/TiDB usada pelo Drizzle |
 | `JWT_SECRET` | Assinatura da sessão |
 | `OAUTH_SERVER_URL` | Serviço OAuth |
-| `VITE_OAUTH_PORTAL_URL` | Portal de login exposto ao frontend |
+| `VITE_OAUTH_PORTAL_URL` | URL pública do portal OAuth; se omitida, usa `OAUTH_PORTAL_URL` ou `OAUTH_SERVER_URL` como fallback |
 | `VITE_APP_ID` | Identificador público do aplicativo OAuth |
 | `BUILT_IN_FORGE_API_URL` e `BUILT_IN_FORGE_API_KEY` | Serviços internos usados pelo backend |
 | `OPENROUTER_API_KEY` | Qualificação e geração de mensagens por IA, se usado externamente |
 | `N8N_WEBHOOK_URL` e `N8N_WEBHOOK_TOKEN` | Integração com os workflows n8n |
 | `EVOLUTION_API_URL` e `EVOLUTION_API_KEY` | Compatibilidade global com Evolution Go |
 
-As chaves específicas de Apify, n8n, OpenRouter, Evolution Go, Postgres e Hasura também podem continuar sendo cadastradas no painel do SDEBR; elas são criptografadas e armazenadas pelo servidor.
+O login OAuth usa a rota server-side `/api/oauth/start`, que monta o callback com o domínio público atual. Por isso, no EasyPanel, `VITE_APP_ID` e `OAUTH_SERVER_URL` precisam existir como variáveis de runtime do container; não é necessário depender desses valores no bundle do frontend. O domínio público precisa estar cadastrado como redirect URI permitido no aplicativo OAuth. As chaves específicas de Apify, n8n, OpenRouter, Evolution Go, Postgres e Hasura também podem continuar sendo cadastradas no painel do SDEBR; elas são criptografadas e armazenadas pelo servidor.
 
 ## Observações operacionais
 

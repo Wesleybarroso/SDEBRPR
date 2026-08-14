@@ -145,3 +145,8 @@
 - [x] Criar Dockerfile de produção para build completo do frontend e servidor SDEBR
 - [x] Documentar variáveis de ambiente, execução com PORT e publicação da imagem em um registry
 - [x] Validar o build local e o contrato Docker; execução real do container depende de ambiente com Docker
+
+- [x] Corrigir login no deploy EasyPanel usando rota OAuth server-side e callback baseado no domínio público
+- [x] Validar o fluxo de autenticação local e preparar novo checkpoint para publicação; validação pública depende do novo upload
+
+- [ ] Rebuild/redeploy da imagem no EasyPanel com `VITE_APP_ID`, `OAUTH_SERVER_URL` e `VITE_OAUTH_PORTAL_URL` e validar login no domínio público
