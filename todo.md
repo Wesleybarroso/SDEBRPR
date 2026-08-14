@@ -117,3 +117,5 @@
 - [x] Alinhar escopo do heartbeat como monitoramento e registrar estratégia de reconexão via Evolution Go/n8n
 - [x] Criar documentação dedicada sobre Reserved Hosting e processo sempre ativo
 - [x] Executar validação visual específica do gerenciador e estados de conexão em desktop e mobile
+
+- [x] Refinar o card de cadastro de números WhatsApp com melhor hierarquia visual, estados e responsividade
