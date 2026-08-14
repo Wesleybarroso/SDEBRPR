@@ -36,6 +36,13 @@
       "when": 1786714210134,
       "tag": "0004_solid_exodus",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "5",
+      "when": 1786716914239,
+      "tag": "0005_clumsy_wolverine",
+      "breakpoints": true
     }
   ]
 }

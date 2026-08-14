@@ -2,7 +2,7 @@ import { COOKIE_NAME } from "@shared/const";
 import { getSessionCookieOptions } from "./_core/cookies";
 import { systemRouter } from "./_core/systemRouter";
 import { publicProcedure, protectedProcedure, router } from "./_core/trpc";
-import { createSearchRun, getDashboardMetrics, getIntegrationSecrets, getIntegrationSettings, getLeadQualityMetrics, listLeads, removeIntegrationSetting, saveIntegrationSettings, upsertLead, updateLeadQualification } from "./db";
+import { createSearchRun, getDashboardMetrics, getIntegrationSecrets, getIntegrationSettings, getLeadQualityMetrics, listLeads, removeIntegrationSetting, saveIntegrationSettings, saveUserAvatar, upsertLead, updateLeadQualification } from "./db";
 import { leadQualifications, leads } from "../drizzle/schema";
 import { z } from "zod";
 import { getDb } from "./db";
@@ -21,6 +21,7 @@ export const appRouter = router({
     }),
   }),
   profile: router({
+    avatar: protectedProcedure.input(z.object({ dataUrl: z.string().max(7_500_000) })).mutation(({ ctx, input }) => saveUserAvatar(ctx.user.id, input.dataUrl)),
     update: protectedProcedure.input(z.object({ name: z.string().min(2).optional(), email: z.string().email().optional(), preferences: z.object({ defaultNiche: z.string().optional(), minScore: z.number().min(0).max(100).optional(), compactMode: z.boolean().optional() }).optional() })).mutation(async ({ ctx, input }) => {
       const db = await getDb();
       if (!db) throw new Error("Banco indisponível");

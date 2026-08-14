@@ -5,6 +5,7 @@ import { ENV } from './_core/env';
 import { isReadyToSend, normalizePhone } from "../shared/leadRules";
 import { decryptSecret, encryptSecret, maskSecret } from "./integrationSecrets";
 import { maskIntegrationRecord } from "../shared/integrationSettings";
+import { storagePut } from "./storage";
 
 let _db: ReturnType<typeof drizzle> | null = null;
 
@@ -78,6 +79,18 @@ export async function upsertUser(user: InsertUser): Promise<void> {
     console.error("[Database] Failed to upsert user:", error);
     throw error;
   }
+}
+
+export async function saveUserAvatar(userId: number, dataUrl: string) {
+  const match = dataUrl.match(/^data:(image\/(png|jpeg|jpg|webp));base64,([A-Za-z0-9+/=]+)$/);
+  if (!match) throw new Error("Formato de imagem inválido. Use PNG, JPG ou WEBP.");
+  const buffer = Buffer.from(match[3], "base64");
+  if (buffer.length > 5 * 1024 * 1024) throw new Error("A foto deve ter no máximo 5 MB.");
+  const uploaded = await storagePut(`users/${userId}/avatar`, buffer, match[1]);
+  const db = await getDb();
+  if (!db) throw new Error("Banco indisponível");
+  await db.update(users).set({ avatarUrl: uploaded.url }).where(eq(users.id, userId));
+  return { success: true, avatarUrl: uploaded.url };
 }
 
 export async function getUserByOpenId(openId: string) {

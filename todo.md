@@ -58,3 +58,17 @@
 - [x] Permitir remover cada credencial de API individualmente com confirmação
 - [x] Cobrir dashboard e remoção individual de credenciais com testes
 - [x] Validar dashboard e configurações em desktop e mobile
+
+- [x] Adicionar campo persistente de foto/avatar no perfil do usuário
+- [x] Implementar upload seguro de foto com validação de tipo e tamanho
+- [x] Exibir avatar no perfil, navbar e estados de usuário autenticado
+- [x] Analisar altixdev.com.br e documentar a direção visual aplicada ao LeadFlow Ops
+- [x] Ajustar identidade visual global do painel com base na referência aprovada
+- [x] Adicionar testes para upload/atualização do avatar e segurança do arquivo
+- [x] Validar Perfil, navbar e dashboard em desktop e mobile
+- [x] Aplicar a identidade visual Altixdev-inspired de forma consistente nas páginas principais, reduzindo cores hardcoded antigas
+- [x] Criar teste Vitest de upload bem-sucedido com storage mockado e retorno de avatarUrl
+- [x] Aplicar a identidade visual Altixdev-inspired também em Leads e remover hex verdes legados das telas principais
+- [x] Testar saveUserAvatar real com storagePut e update do banco mockados, validando avatarUrl persistido
+- [x] Concluir padronização visual das páginas principais usando tokens compartilhados
+- [x] Executar grep final e remover hex colors legados remanescentes das páginas principais

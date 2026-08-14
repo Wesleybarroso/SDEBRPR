@@ -1,5 +1,5 @@
 import { useAuth } from "@/_core/hooks/useAuth";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -172,9 +172,7 @@ function DashboardLayoutContent({
               </button>
               {!isCollapsed ? (
                 <div className="flex items-center gap-2 min-w-0">
-                  <span className="font-semibold tracking-tight truncate">
-                    Navigation
-                  </span>
+                  <div className="min-w-0"><span className="block truncate text-[11px] font-semibold tracking-[0.16em] text-sidebar-foreground">ALTIX / LEADFLOW</span><span className="mt-0.5 block truncate text-[9px] uppercase tracking-[0.18em] text-sidebar-foreground/50">digital operations</span></div>
                 </div>
               ) : null}
             </div>
@@ -208,6 +206,7 @@ function DashboardLayoutContent({
               <DropdownMenuTrigger asChild>
                 <button className="flex items-center gap-3 rounded-lg px-1 py-1 hover:bg-accent/50 transition-colors w-full text-left group-data-[collapsible=icon]:justify-center focus:outline-none focus-visible:ring-2 focus-visible:ring-ring">
                   <Avatar className="h-9 w-9 border shrink-0">
+                    {user?.avatarUrl ? <AvatarImage src={user.avatarUrl} alt={`Foto de ${user.name || "usuário"}`} /> : null}
                     <AvatarFallback className="text-xs font-medium">
                       {user?.name?.charAt(0).toUpperCase()}
                     </AvatarFallback>
