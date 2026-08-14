@@ -4,6 +4,7 @@ const dbMocks = vi.hoisted(() => ({
   moveConversation: vi.fn(),
   reorderConversation: vi.fn(),
   getIntegrationSecrets: vi.fn(),
+  getWhatsappNumberSecret: vi.fn(),
   saveConversationMessage: vi.fn(),
   markConversationMessage: vi.fn(),
 }));
@@ -13,6 +14,7 @@ vi.mock("./db", () => ({
   getConversationMessages: vi.fn(),
   getDashboardMetrics: vi.fn(),
   getIntegrationSecrets: dbMocks.getIntegrationSecrets,
+  getWhatsappNumberSecret: dbMocks.getWhatsappNumberSecret,
   getIntegrationSettings: vi.fn(),
   getLeadQualityMetrics: vi.fn(),
   listConversations: vi.fn(),
@@ -40,6 +42,7 @@ describe("conversations router", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     dbMocks.getIntegrationSecrets.mockResolvedValue({ n8nWebhookUrl: "https://n8n.test/conversation", n8nWebhookToken: "n8n-token", evolutionApiUrl: "https://evolution.test", evolutionApiKey: "evo-token" });
+    dbMocks.getWhatsappNumberSecret.mockResolvedValue(undefined);
     dbMocks.saveConversationMessage.mockResolvedValue({ id: 12 });
     dbMocks.markConversationMessage.mockResolvedValue({ id: 12, deliveryStatus: "sent" });
   });
@@ -52,6 +55,19 @@ describe("conversations router", () => {
     await caller.conversations.reorder({ conversationId: 7, direction: "up" });
     expect(dbMocks.moveConversation).toHaveBeenCalledWith(7, "interested", undefined);
     expect(dbMocks.reorderConversation).toHaveBeenCalledWith(7, "up");
+  });
+
+  it("dispatches a manual message using the selected WhatsApp instance", async () => {
+    const fakeDb = { select: () => ({ from: () => ({ leftJoin: () => ({ where: () => ({ limit: async () => [{ conversation: { id: 7 }, lead: { id: 11, phone: "5511999999999" } }] }) }) }) }) };
+    const dbModule = await import("./db");
+    vi.mocked(dbModule.getDb).mockResolvedValue(fakeDb as never);
+    dbMocks.getWhatsappNumberSecret.mockResolvedValue({ id: 3, phone: "5511888888888", instanceName: "comercial-03", apiUrl: "https://evolution-03.test", apiKey: "instance-token", keepAlive: true });
+    const fetchMock = vi.fn().mockResolvedValue(new Response("{}", { status: 200 }));
+    vi.stubGlobal("fetch", fetchMock);
+    await appRouter.createCaller(context()).conversations.send({ conversationId: 7, body: "Mensagem pela instância 3", whatsappNumberId: 3 });
+    const payload = JSON.parse(fetchMock.mock.calls[0]?.[1]?.body as string);
+    expect(payload.evolution).toMatchObject({ numberId: 3, instanceName: "comercial-03", apiKey: "instance-token", keepAlive: true });
+    vi.unstubAllGlobals();
   });
 
   it("reactivates a rescue lead, persists the outbound message and returns it to contacted", async () => {

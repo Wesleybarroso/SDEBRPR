@@ -8,6 +8,7 @@ import { registerStorageProxy } from "./storageProxy";
 import { appRouter } from "../routers";
 import { createContext } from "./context";
 import { ingestEvolutionMessage, upsertLead } from "../db";
+import { evolutionHeartbeatHandler } from "../evolutionHeartbeat";
 import { serveStatic, setupVite } from "./vite";
 
 function isPortAvailable(port: number): Promise<boolean> {
@@ -49,6 +50,7 @@ async function startServer() {
       return res.status(400).json({ success: false, error: "invalid_message_payload" });
     }
   });
+  app.post("/api/scheduled/evolutionHeartbeat", evolutionHeartbeatHandler);
   app.post("/api/integrations/n8n/leads", async (req, res) => {
     try {
       const expected = process.env.N8N_WEBHOOK_TOKEN;

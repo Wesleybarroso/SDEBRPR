@@ -96,3 +96,24 @@
 - [x] Criar teste mockado de MESSAGES_UPDATE/SEND_MESSAGE_UPDATE atualizando mensagem por externalId
 - [x] Criar teste Vitest direto de ingestEvolutionMessage para MESSAGES_UPDATE e SEND_MESSAGE_UPDATE com update por externalId
 - [x] Criar teste direto de ingestEvolutionMessage para MESSAGES_UPDATE e SEND_MESSAGE_UPDATE usando updater mockado
+
+- [x] Criar tabela persistente de números/instâncias WhatsApp por usuário
+- [x] Permitir cadastrar múltiplos números com nome, telefone, instância, URL e chave Evolution Go
+- [x] Permitir editar, remover, ativar/desativar e definir número padrão
+- [x] Permitir selecionar o número de saída por conversa e encaminhá-lo ao n8n/Evolution
+- [x] Exibir o gerenciador de números dentro da aba Conversas
+- [x] Adicionar testes Vitest para cadastro, edição, remoção, número padrão e dispatch selecionado
+- [x] Validar o gerenciador de WhatsApp em desktop e mobile
+
+- [x] Adicionar modo de conexão persistente para o número de disparos automáticos
+- [x] Implementar heartbeat/reconexão e status operacional da instância Evolution Go
+- [x] Garantir que o dispatch automático use o número/instância selecionado e credenciais próprias
+- [x] Documentar a necessidade de processo sempre ativo e a opção Reserved para produção
+- [x] Adicionar testes Vitest para seleção do número, reconexão e payload de disparo
+- [x] Validar a tela e os estados de conexão em desktop e mobile
+
+- [x] Criar testes Vitest reais para CRUD de números, padrão e dispatch com whatsappNumberId
+- [x] Corrigir validação do cron para aceitar intervalos como */5 e testar ativação/desativação
+- [x] Alinhar escopo do heartbeat como monitoramento e registrar estratégia de reconexão via Evolution Go/n8n
+- [x] Criar documentação dedicada sobre Reserved Hosting e processo sempre ativo
+- [x] Executar validação visual específica do gerenciador e estados de conexão em desktop e mobile

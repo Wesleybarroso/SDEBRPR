@@ -143,6 +143,26 @@ export const conversationMessages = mysqlTable("conversation_messages", {
   createdAt: timestamp("createdAt").defaultNow().notNull(),
 });
 
+export const userWhatsappNumbers = mysqlTable("user_whatsapp_numbers", {
+  id: int("id").autoincrement().primaryKey(),
+  userId: int("userId").notNull(),
+  label: varchar("label", { length: 120 }).notNull(),
+  phone: varchar("phone", { length: 40 }).notNull(),
+  instanceName: varchar("instanceName", { length: 160 }).notNull(),
+  apiUrl: text("apiUrl").notNull(),
+  apiKey: text("apiKey").notNull(),
+  isActive: boolean("isActive").default(true).notNull(),
+  isDefault: boolean("isDefault").default(false).notNull(),
+  keepAlive: boolean("keepAlive").default(false).notNull(),
+  connectionStatus: mysqlEnum("connectionStatus", ["offline", "connecting", "connected", "error"]).default("offline").notNull(),
+  lastHeartbeatAt: timestamp("lastHeartbeatAt"),
+  lastError: text("lastError"),
+  scheduleCronTaskUid: varchar("scheduleCronTaskUid", { length: 65 }),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+
 export type UserIntegration = typeof userIntegrations.$inferSelect;
+export type UserWhatsappNumber = typeof userWhatsappNumbers.$inferSelect;
 export type Conversation = typeof conversations.$inferSelect;
 export type ConversationMessage = typeof conversationMessages.$inferSelect;

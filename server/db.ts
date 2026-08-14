@@ -1,6 +1,6 @@
 import { and, desc, eq, like, or, sql } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/mysql2";
-import { InsertUser, conversationMessages, conversations, leads, searchRuns, userIntegrations, users } from "../drizzle/schema";
+import { InsertUser, conversationMessages, conversations, leads, searchRuns, userIntegrations, userWhatsappNumbers, users } from "../drizzle/schema";
 import { ENV } from './_core/env';
 import { isReadyToSend, normalizePhone } from "../shared/leadRules";
 import { deliveryStatusFromEvolution, evolutionStatusUpdate, nextQueueOrder } from "../shared/conversationRules";
@@ -149,6 +149,89 @@ export async function saveIntegrationSettings(userId: number, input: Integration
   for (const field of plainFields) if (input[field] !== undefined) encrypted[field] = input[field] || "";
   await db.insert(userIntegrations).values({ userId, ...encrypted }).onDuplicateKeyUpdate({ set: encrypted });
   return { success: true };
+}
+
+export async function listWhatsappNumbers(userId: number) {
+  const db = await getDb();
+  if (!db) return [];
+  const rows = await db.select().from(userWhatsappNumbers).where(eq(userWhatsappNumbers.userId, userId)).orderBy(desc(userWhatsappNumbers.isDefault), desc(userWhatsappNumbers.updatedAt));
+  return rows.map(row => ({ ...row, apiKey: maskSecret(decryptSecret(row.apiKey)) }));
+}
+
+type WhatsappNumberInput = { id?: number; label: string; phone: string; instanceName: string; apiUrl: string; apiKey?: string; isActive?: boolean; isDefault?: boolean; keepAlive?: boolean };
+
+export async function saveWhatsappNumber(userId: number, input: WhatsappNumberInput) {
+  const db = await getDb();
+  if (!db) throw new Error("Banco indisponível");
+  const values: Record<string, unknown> = { userId, label: input.label.trim(), phone: input.phone.trim(), instanceName: input.instanceName.trim(), apiUrl: input.apiUrl.trim(), isActive: input.isActive ?? true, keepAlive: input.keepAlive ?? false, isDefault: input.isDefault ?? false };
+  if (input.apiKey?.trim()) values.apiKey = encryptSecret(input.apiKey.trim());
+  if (input.id) {
+    if (!input.apiKey?.trim()) {
+      const [existing] = await db.select({ apiKey: userWhatsappNumbers.apiKey }).from(userWhatsappNumbers).where(and(eq(userWhatsappNumbers.id, input.id), eq(userWhatsappNumbers.userId, userId))).limit(1);
+      if (existing) values.apiKey = existing.apiKey;
+    }
+    await db.update(userWhatsappNumbers).set(values).where(and(eq(userWhatsappNumbers.id, input.id), eq(userWhatsappNumbers.userId, userId)));
+  } else {
+    if (!values.apiKey) throw new Error("A chave Evolution Go é obrigatória no primeiro cadastro");
+    const existing = await db.select({ id: userWhatsappNumbers.id }).from(userWhatsappNumbers).where(eq(userWhatsappNumbers.userId, userId)).limit(1);
+    if (!existing.length) values.isDefault = true;
+    await db.insert(userWhatsappNumbers).values(values as never);
+  }
+  const saved = input.id ? input.id : (await db.select({ id: userWhatsappNumbers.id }).from(userWhatsappNumbers).where(eq(userWhatsappNumbers.userId, userId)).orderBy(desc(userWhatsappNumbers.id)).limit(1))[0]?.id;
+  if (values.isDefault && saved) await db.update(userWhatsappNumbers).set({ isDefault: false }).where(and(eq(userWhatsappNumbers.userId, userId), sql`${userWhatsappNumbers.id} <> ${saved}`));
+  return { success: true, id: saved };
+}
+
+export async function removeWhatsappNumber(userId: number, id: number) {
+  const db = await getDb();
+  if (!db) return { success: false };
+  await db.delete(userWhatsappNumbers).where(and(eq(userWhatsappNumbers.id, id), eq(userWhatsappNumbers.userId, userId)));
+  return { success: true };
+}
+
+export async function setWhatsappDefault(userId: number, id: number) {
+  const db = await getDb();
+  if (!db) return { success: false };
+  await db.update(userWhatsappNumbers).set({ isDefault: false }).where(eq(userWhatsappNumbers.userId, userId));
+  await db.update(userWhatsappNumbers).set({ isDefault: true }).where(and(eq(userWhatsappNumbers.id, id), eq(userWhatsappNumbers.userId, userId)));
+  return { success: true };
+}
+
+export async function setWhatsappActive(userId: number, id: number, isActive: boolean) {
+  const db = await getDb();
+  if (!db) return { success: false };
+  await db.update(userWhatsappNumbers).set({ isActive, connectionStatus: isActive ? "connecting" : "offline" }).where(and(eq(userWhatsappNumbers.id, id), eq(userWhatsappNumbers.userId, userId)));
+  return { success: true };
+}
+
+export async function getWhatsappNumberSecret(userId: number, id?: number) {
+  const db = await getDb();
+  if (!db) return undefined;
+  const where = id ? and(eq(userWhatsappNumbers.userId, userId), eq(userWhatsappNumbers.id, id)) : and(eq(userWhatsappNumbers.userId, userId), eq(userWhatsappNumbers.isActive, true));
+  const rows = await db.select().from(userWhatsappNumbers).where(where).orderBy(desc(userWhatsappNumbers.isDefault), desc(userWhatsappNumbers.updatedAt)).limit(1);
+  const row = rows[0];
+  return row ? { ...row, apiKey: decryptSecret(row.apiKey) } : undefined;
+}
+
+export async function updateWhatsappConnection(userId: number, id: number, status: "offline" | "connecting" | "connected" | "error", error?: string | null) {
+  const db = await getDb();
+  if (!db) return { success: false };
+  await db.update(userWhatsappNumbers).set({ connectionStatus: status, lastHeartbeatAt: new Date(), lastError: error ?? null }).where(and(eq(userWhatsappNumbers.id, id), eq(userWhatsappNumbers.userId, userId)));
+  return { success: true };
+}
+
+export async function setWhatsappScheduleTaskUid(userId: number, id: number, taskUid: string | null) {
+  const db = await getDb();
+  if (!db) return { success: false };
+  await db.update(userWhatsappNumbers).set({ scheduleCronTaskUid: taskUid }).where(and(eq(userWhatsappNumbers.id, id), eq(userWhatsappNumbers.userId, userId)));
+  return { success: true };
+}
+
+export async function getWhatsappNumberByTaskUid(taskUid: string) {
+  const db = await getDb();
+  if (!db) return undefined;
+  const [row] = await db.select().from(userWhatsappNumbers).where(eq(userWhatsappNumbers.scheduleCronTaskUid, taskUid)).limit(1);
+  return row;
 }
 
 export async function listLeads(filters: { search?: string; city?: string; state?: string; region?: string; niche?: string; whatsapp?: "valid" | "invalid" | "pending"; minScore?: number }) {

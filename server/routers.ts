@@ -1,8 +1,10 @@
 import { COOKIE_NAME } from "@shared/const";
+import { parse as parseCookie } from "cookie";
+import { createHeartbeatJob, deleteHeartbeatJob, updateHeartbeatJob } from "./_core/heartbeat";
 import { getSessionCookieOptions } from "./_core/cookies";
 import { systemRouter } from "./_core/systemRouter";
 import { publicProcedure, protectedProcedure, router } from "./_core/trpc";
-import { ConversationStage, createSearchRun, getConversationMessages, getDashboardMetrics, getIntegrationSecrets, getIntegrationSettings, getLeadQualityMetrics, listConversations, listLeads, markConversationMessage, moveConversation, reorderConversation, removeIntegrationSetting, saveConversationMessage, saveIntegrationSettings, saveUserAvatar, upsertLead, updateLeadQualification } from "./db";
+import { ConversationStage, createSearchRun, getConversationMessages, getDashboardMetrics, getIntegrationSecrets, getIntegrationSettings, getLeadQualityMetrics, getWhatsappNumberSecret, listConversations, listLeads, listWhatsappNumbers, markConversationMessage, moveConversation, reorderConversation, removeIntegrationSetting, removeWhatsappNumber, saveConversationMessage, saveIntegrationSettings, saveUserAvatar, saveWhatsappNumber, setWhatsappActive, setWhatsappDefault, setWhatsappScheduleTaskUid, upsertLead, updateLeadQualification } from "./db";
 import { leadQualifications, leads } from "../drizzle/schema";
 import { z } from "zod";
 import { getDb } from "./db";
@@ -69,13 +71,36 @@ export const appRouter = router({
       return { filename: `leadflow-melhores-leads-${new Date().toISOString().slice(0, 10)}.csv`, csv };
     }),
   }),
+  whatsapp: router({
+    list: protectedProcedure.query(({ ctx }) => listWhatsappNumbers(ctx.user.id)),
+    save: protectedProcedure.input(z.object({ id: z.number().optional(), label: z.string().min(2).max(120), phone: z.string().min(8).max(40), instanceName: z.string().min(1).max(160), apiUrl: z.string().url(), apiKey: z.string().max(500).optional(), isActive: z.boolean().optional(), isDefault: z.boolean().optional(), keepAlive: z.boolean().optional() })).mutation(({ ctx, input }) => saveWhatsappNumber(ctx.user.id, input)),
+    remove: protectedProcedure.input(z.object({ id: z.number() })).mutation(({ ctx, input }) => removeWhatsappNumber(ctx.user.id, input.id)),
+    setDefault: protectedProcedure.input(z.object({ id: z.number() })).mutation(({ ctx, input }) => setWhatsappDefault(ctx.user.id, input.id)),
+    setActive: protectedProcedure.input(z.object({ id: z.number(), isActive: z.boolean() })).mutation(({ ctx, input }) => setWhatsappActive(ctx.user.id, input.id, input.isActive)),
+    persistent: protectedProcedure.input(z.object({ id: z.number(), enabled: z.boolean(), cron: z.string().regex(/^\S+ \S+ \S+ \S+ \S+ \S+$/).default("0 */5 * * * *") })).mutation(async ({ ctx, input }) => {
+      const sessionToken = parseCookie(ctx.req.headers.cookie ?? "")[COOKIE_NAME] ?? "";
+      const number = await getWhatsappNumberSecret(ctx.user.id, input.id);
+      if (!number) throw new Error("Número WhatsApp não encontrado");
+      const listed = (await listWhatsappNumbers(ctx.user.id)).find(row => row.id === input.id) as { scheduleCronTaskUid?: string | null } | undefined;
+      if (!input.enabled) {
+        if (listed?.scheduleCronTaskUid) await deleteHeartbeatJob(listed.scheduleCronTaskUid, sessionToken);
+        await setWhatsappScheduleTaskUid(ctx.user.id, input.id, null);
+        return { success: true, enabled: false };
+      }
+      const job = listed?.scheduleCronTaskUid
+        ? await updateHeartbeatJob(listed.scheduleCronTaskUid, { cron: input.cron, enable: true }, sessionToken).then(() => ({ taskUid: listed.scheduleCronTaskUid! }))
+        : await createHeartbeatJob({ name: `sdebr-evolution-${number.id}`, cron: input.cron, path: "/api/scheduled/evolutionHeartbeat", description: `Verificação persistente da instância ${number.instanceName}` }, sessionToken);
+      await setWhatsappScheduleTaskUid(ctx.user.id, input.id, job.taskUid);
+      return { success: true, enabled: true, taskUid: job.taskUid };
+    }),
+  }),
   conversations: router({
     list: protectedProcedure.input(z.object({ stage: z.enum(["new", "contacted", "waiting", "interested", "in_progress", "not_interested", "rescue", "closed"]).optional() }).default({})).query(({ input }) => listConversations(input.stage as ConversationStage | undefined)),
     messages: protectedProcedure.input(z.object({ conversationId: z.number() })).query(({ input }) => getConversationMessages(input.conversationId)),
     move: protectedProcedure.input(z.object({ conversationId: z.number(), stage: z.enum(["new", "contacted", "waiting", "interested", "in_progress", "not_interested", "rescue", "closed"]), serviceOrder: z.number().optional() })).mutation(({ input }) => moveConversation(input.conversationId, input.stage as ConversationStage, input.serviceOrder)),
     reorder: protectedProcedure.input(z.object({ conversationId: z.number(), direction: z.enum(["up", "down"]) })).mutation(({ input }) => reorderConversation(input.conversationId, input.direction)),
     rescue: protectedProcedure.input(z.object({ conversationId: z.number() })).mutation(({ input }) => moveConversation(input.conversationId, "rescue")),
-    reactivate: protectedProcedure.input(z.object({ conversationId: z.number(), body: z.string().max(4000).optional() })).mutation(async ({ ctx, input }) => {
+    reactivate: protectedProcedure.input(z.object({ conversationId: z.number(), body: z.string().max(4000).optional(), whatsappNumberId: z.number().optional() })).mutation(async ({ ctx, input }) => {
       const db = await getDb();
       const { conversations, leads } = await import("../drizzle/schema");
       const [row] = db ? await db.select({ conversation: conversations, lead: leads }).from(conversations).leftJoin(leads, eq(conversations.leadId, leads.id)).where(eq(conversations.id, input.conversationId)).limit(1) : [];
@@ -83,22 +108,24 @@ export const appRouter = router({
       const body = input.body?.trim() || "Olá! Passando para saber se este é um bom momento para retomarmos a conversa. Posso ajudar em algo?";
       const pending = await saveConversationMessage({ conversationId: input.conversationId, direction: "outbound", author: "manual", body, deliveryStatus: "pending" });
       const integration = await getIntegrationSecrets(ctx.user.id);
+      const sender = await getWhatsappNumberSecret(ctx.user.id, input.whatsappNumberId);
       if (!integration.n8nWebhookUrl) throw new Error("Configure o webhook do n8n antes de reativar leads");
-      const response = await fetch(integration.n8nWebhookUrl, { method: "POST", headers: { "Content-Type": "application/json", ...(integration.n8nWebhookToken ? { Authorization: `Bearer ${integration.n8nWebhookToken}` } : {}) }, body: JSON.stringify({ type: "conversation.reactivate", conversationId: input.conversationId, messageId: pending?.id, leadId: row.lead.id, to: row.lead.phone, text: body, evolution: { apiUrl: integration.evolutionApiUrl, apiKey: integration.evolutionApiKey } }) });
+      const response = await fetch(integration.n8nWebhookUrl, { method: "POST", headers: { "Content-Type": "application/json", ...(integration.n8nWebhookToken ? { Authorization: `Bearer ${integration.n8nWebhookToken}` } : {}) }, body: JSON.stringify({ type: "conversation.reactivate", conversationId: input.conversationId, messageId: pending?.id, leadId: row.lead.id, to: row.lead.phone, text: body, evolution: sender ? { numberId: sender.id, phone: sender.phone, instanceName: sender.instanceName, apiUrl: sender.apiUrl, apiKey: sender.apiKey, keepAlive: sender.keepAlive } : { apiUrl: integration.evolutionApiUrl, apiKey: integration.evolutionApiKey } }) });
       const result = pending ? await markConversationMessage(pending.id, response.ok ? "sent" : "failed") : undefined;
       if (!response.ok) throw new Error(`n8n retornou ${response.status}`);
       await moveConversation(input.conversationId, "contacted");
       return result;
     }),
-    send: protectedProcedure.input(z.object({ conversationId: z.number(), body: z.string().min(1).max(4000), author: z.enum(["ai", "manual"]).default("manual") })).mutation(async ({ ctx, input }) => {
+    send: protectedProcedure.input(z.object({ conversationId: z.number(), body: z.string().min(1).max(4000), author: z.enum(["ai", "manual"]).default("manual"), whatsappNumberId: z.number().optional() })).mutation(async ({ ctx, input }) => {
       const db = await getDb();
       const { conversations, leads } = await import("../drizzle/schema");
       const [row] = db ? await db.select({ conversation: conversations, lead: leads }).from(conversations).leftJoin(leads, eq(conversations.leadId, leads.id)).where(eq(conversations.id, input.conversationId)).limit(1) : [];
       if (!row?.lead) throw new Error("Conversa ou lead não encontrado");
       const pending = await saveConversationMessage({ conversationId: input.conversationId, direction: "outbound", author: input.author, body: input.body, deliveryStatus: "pending" });
       const integration = await getIntegrationSecrets(ctx.user.id);
+      const sender = await getWhatsappNumberSecret(ctx.user.id, input.whatsappNumberId);
       if (!integration.n8nWebhookUrl) throw new Error("Configure o webhook do n8n antes de enviar mensagens");
-      const response = await fetch(integration.n8nWebhookUrl, { method: "POST", headers: { "Content-Type": "application/json", ...(integration.n8nWebhookToken ? { Authorization: `Bearer ${integration.n8nWebhookToken}` } : {}) }, body: JSON.stringify({ type: "conversation.message", conversationId: input.conversationId, messageId: pending?.id, leadId: row.lead.id, to: row.lead.phone, text: input.body, author: input.author, evolution: { apiUrl: integration.evolutionApiUrl, apiKey: integration.evolutionApiKey } }) });
+      const response = await fetch(integration.n8nWebhookUrl, { method: "POST", headers: { "Content-Type": "application/json", ...(integration.n8nWebhookToken ? { Authorization: `Bearer ${integration.n8nWebhookToken}` } : {}) }, body: JSON.stringify({ type: "conversation.message", conversationId: input.conversationId, messageId: pending?.id, leadId: row.lead.id, to: row.lead.phone, text: input.body, author: input.author, evolution: sender ? { numberId: sender.id, phone: sender.phone, instanceName: sender.instanceName, apiUrl: sender.apiUrl, apiKey: sender.apiKey, keepAlive: sender.keepAlive } : { apiUrl: integration.evolutionApiUrl, apiKey: integration.evolutionApiKey } }) });
       const result = pending ? await markConversationMessage(pending.id, response.ok ? "sent" : "failed") : undefined;
       if (!response.ok) throw new Error(`n8n retornou ${response.status}`);
       return result;
