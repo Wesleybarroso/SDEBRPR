@@ -141,3 +141,7 @@
 - [x] Refinar navegação lateral do SDEBR com marca, estados ativos, espaçamento e responsividade mais profissionais
 
 - [x] Refinar o card de geração de modelos por IA com melhor contraste, hierarquia visual e responsividade
+
+- [x] Criar Dockerfile de produção para build completo do frontend e servidor SDEBR
+- [x] Documentar variáveis de ambiente, execução com PORT e publicação da imagem em um registry
+- [x] Validar o build local e o contrato Docker; execução real do container depende de ambiente com Docker
