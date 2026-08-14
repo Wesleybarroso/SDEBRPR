@@ -137,3 +137,5 @@
 
 - [x] Corrigir “Exportar melhores” com filtros de score e WhatsApp, CSV profissional e estados de sucesso/erro
 - [x] Validar a exportação em desktop e mobile e cobrir o contrato com testes
+
+- [x] Refinar navegação lateral do SDEBR com marca, estados ativos, espaçamento e responsividade mais profissionais

@@ -162,25 +162,28 @@ function DashboardLayoutContent({
           className="border-r-0"
           disableTransition={isResizing}
         >
-          <SidebarHeader className="h-16 justify-center">
-            <div className="flex items-center gap-3 px-2 transition-all w-full">
+          <SidebarHeader className="h-[92px] justify-center border-b border-sidebar-border/60 px-3">
+            <div className="flex w-full items-center gap-3">
               <button
                 onClick={toggleSidebar}
-                className="h-8 w-8 flex items-center justify-center hover:bg-accent rounded-lg transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-ring shrink-0"
-                aria-label="Toggle navigation"
+                className="relative flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border border-indigo-400/50 bg-gradient-to-br from-indigo-500/25 via-slate-900 to-slate-950 text-indigo-200 shadow-[0_10px_25px_-12px_rgba(99,102,241,0.9)] transition-all duration-200 hover:border-indigo-300 hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-300 active:scale-95"
+                aria-label="Alternar navegação"
               >
-                <PanelLeft className="h-4 w-4 text-muted-foreground" />
+                <span className="absolute inset-1 rounded-xl border border-white/10" />
+                <PanelLeft className="relative h-[17px] w-[17px]" />
               </button>
               {!isCollapsed ? (
-                <div className="flex items-center gap-2 min-w-0">
-                  <div className="min-w-0"><span className="block truncate text-[11px] font-semibold tracking-[0.16em] text-sidebar-foreground">SDEBR / OPS</span><span className="mt-0.5 block truncate text-[9px] uppercase tracking-[0.18em] text-sidebar-foreground/50">digital operations</span></div>
+                <div className="min-w-0">
+                  <span className="block truncate text-[12px] font-semibold tracking-[0.2em] text-sidebar-foreground">SDEBR <span className="text-indigo-300">/ OPS</span></span>
+                  <span className="mt-1 block truncate text-[9px] font-medium uppercase tracking-[0.24em] text-sidebar-foreground/45">digital operations</span>
                 </div>
               ) : null}
             </div>
           </SidebarHeader>
 
-          <SidebarContent className="gap-0">
-            <SidebarMenu className="px-2 py-1">
+          <SidebarContent className="gap-0 px-2 py-4">
+            {!isCollapsed && <p className="mb-2 px-3 text-[9px] font-semibold uppercase tracking-[0.24em] text-sidebar-foreground/35">Workspace</p>}
+            <SidebarMenu className="gap-1">
               {menuItems.map(item => {
                 const isActive = location === item.path;
                 return (
@@ -189,10 +192,10 @@ function DashboardLayoutContent({
                       isActive={isActive}
                       onClick={() => setLocation(item.path)}
                       tooltip={item.label}
-                      className={`h-10 transition-all font-normal`}
+                      className={`h-11 rounded-xl px-3 font-medium transition-all duration-200 ${isActive ? "bg-sidebar-accent text-sidebar-accent-foreground shadow-[0_8px_24px_-14px_rgba(99,102,241,0.95)] ring-1 ring-indigo-400/15" : "text-sidebar-foreground/75 hover:bg-sidebar-accent/60 hover:text-sidebar-foreground"}`}
                     >
                       <item.icon
-                        className={`h-4 w-4 ${isActive ? "text-primary" : ""}`}
+                        className={`h-[17px] w-[17px] shrink-0 transition-colors ${isActive ? "text-indigo-300" : "text-sidebar-foreground/60"}`}
                       />
                       <span>{item.label}</span>
                     </SidebarMenuButton>
@@ -202,23 +205,23 @@ function DashboardLayoutContent({
             </SidebarMenu>
           </SidebarContent>
 
-          <SidebarFooter className="p-3">
+          <SidebarFooter className="border-t border-sidebar-border/60 p-3 pt-4">
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <button className="flex items-center gap-3 rounded-lg px-1 py-1 hover:bg-accent/50 transition-colors w-full text-left group-data-[collapsible=icon]:justify-center focus:outline-none focus-visible:ring-2 focus-visible:ring-ring">
-                  <Avatar className="h-9 w-9 border shrink-0">
+                <button className="group flex w-full items-center gap-3 rounded-xl border border-transparent px-2 py-2 text-left transition-all duration-200 hover:border-sidebar-border/70 hover:bg-sidebar-accent/60 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-300 group-data-[collapsible=icon]:justify-center">
+                  <div className="relative shrink-0"><Avatar className="h-10 w-10 border border-indigo-300/30 bg-sidebar-accent shadow-inner">
                     {user?.avatarUrl ? <AvatarImage src={user.avatarUrl} alt={`Foto de ${user.name || "usuário"}`} /> : null}
                     <AvatarFallback className="text-xs font-medium">
                       {user?.name?.charAt(0).toUpperCase()}
                     </AvatarFallback>
-                  </Avatar>
-                  <div className="flex-1 min-w-0 group-data-[collapsible=icon]:hidden">
+                  </Avatar><span className="absolute bottom-0 right-0 h-2.5 w-2.5 rounded-full border-2 border-sidebar bg-emerald-400" /></div>
+                  <div className="min-w-0 flex-1 group-data-[collapsible=icon]:hidden">
                     <p className="text-sm font-medium truncate leading-none">
                       {user?.name || "-"}
                     </p>
                     <p className="text-xs text-muted-foreground truncate mt-1.5">
                       {user?.email || "-"}
-                    </p>
+                    </p><p className="mt-1 text-[9px] font-semibold uppercase tracking-[0.16em] text-emerald-400/80">Operação ativa</p>
                   </div>
                 </button>
               </DropdownMenuTrigger>
@@ -228,7 +231,7 @@ function DashboardLayoutContent({
                   className="cursor-pointer text-destructive focus:text-destructive"
                 >
                   <LogOut className="mr-2 h-4 w-4" />
-                  <span>Sign out</span>
+                  <span>Sair da conta</span>
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
