@@ -27,3 +27,27 @@
 - [x] Implementar estados visuais explícitos de loading, vazio e erro na Home
 - [x] Adicionar testes Vitest para filtros de score e região
 - [x] Criar teste Vitest de contrato do fluxo de ingestão n8n cobrindo payload legado com telefone e chave idempotente
+
+- [x] Revisar e reforçar o fluxo de login e logout pós-login
+- [x] Criar navbar/sidebar pós-login com Visão geral, Leads, Qualificação, Configurações e Perfil
+- [x] Criar página de perfil do usuário
+- [x] Criar página de configurações de APIs com status e campos seguros para chaves
+- [x] Permitir configuração segura das credenciais Apify, n8n, OpenRouter, Evolution Go, Postgres e Hasura
+- [x] Persistir e atualizar preferências de perfil sem expor segredos no frontend
+- [x] Criar testes Vitest para autenticação e validação das configurações de APIs
+- [x] Validar visualmente o fluxo pós-login em desktop e mobile
+- [x] Criar formulário interno para o usuário preencher credenciais de APIs diretamente no sistema
+- [x] Salvar credenciais no servidor com valores mascarados e sem retorno do segredo ao frontend
+- [x] Adicionar teste para atualização e mascaramento das configurações internas
+- [x] Conectar as credenciais salvas pelo usuário ao uso real do n8n e OpenRouter
+- [x] Implementar preferências editáveis de perfil com persistência server-side
+- [x] Validar visualmente Configurações e Perfil em mobile
+- [x] Adicionar teste de criptografia e mascaramento das configurações internas
+- [x] Cobrir o fluxo existente de autenticação e logout com teste Vitest
+- [x] Adicionar preferências reais de perfil além de nome e e-mail, com refetch após salvar
+- [x] Criar teste Vitest do fluxo de criptografia e mascaramento das integrações
+- [x] Cobrir o gate de acesso usando o componente autenticado e o teste de logout protegido
+- [x] Criar teste Vitest para save/get de integrações com retorno mascarado ao frontend
+- [x] Criar teste Vitest do gate de autenticação para acesso sem usuário
+- [x] Criar teste mockado da procedure settings.saveIntegrations e settings.integrations cobrindo persistência, atualização e máscara
+- [x] Adicionar cenário de segunda gravação e leitura mascarada no teste da router de configurações

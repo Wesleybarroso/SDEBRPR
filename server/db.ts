@@ -1,8 +1,10 @@
 import { and, desc, eq, like, or, sql } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/mysql2";
-import { InsertUser, leads, searchRuns, users } from "../drizzle/schema";
+import { InsertUser, leads, searchRuns, userIntegrations, users } from "../drizzle/schema";
 import { ENV } from './_core/env';
 import { isReadyToSend, normalizePhone } from "../shared/leadRules";
+import { decryptSecret, encryptSecret, maskSecret } from "./integrationSecrets";
+import { maskIntegrationRecord } from "../shared/integrationSettings";
 
 let _db: ReturnType<typeof drizzle> | null = null;
 
@@ -88,6 +90,44 @@ export async function getUserByOpenId(openId: string) {
   const result = await db.select().from(users).where(eq(users.openId, openId)).limit(1);
 
   return result.length > 0 ? result[0] : undefined;
+}
+
+const integrationSecretFields = ["apifyApiKey", "n8nWebhookToken", "openrouterApiKey", "evolutionApiKey", "postgresUrl", "hasuraAdminSecret"] as const;
+
+type IntegrationInput = Partial<Record<typeof integrationSecretFields[number], string>> & { n8nWebhookUrl?: string; evolutionApiUrl?: string; hasuraEndpoint?: string };
+
+export async function getIntegrationSettings(userId: number) {
+  const db = await getDb();
+  if (!db) return { configured: false, values: {} };
+  const [row] = await db.select().from(userIntegrations).where(eq(userIntegrations.userId, userId)).limit(1);
+  if (!row) return { configured: false, values: {} };
+  const values = maskIntegrationRecord(row as Record<string, unknown>);
+  return { configured: true, values };
+}
+
+export async function getIntegrationSecrets(userId: number) {
+  const db = await getDb();
+  if (!db) return { n8nWebhookUrl: process.env.N8N_WEBHOOK_URL || "", n8nWebhookToken: process.env.N8N_WEBHOOK_TOKEN || "", openrouterApiKey: process.env.OPENROUTER_API_KEY || "", evolutionApiUrl: process.env.EVOLUTION_API_URL || "", evolutionApiKey: process.env.EVOLUTION_API_KEY || "" };
+  const [row] = await db.select().from(userIntegrations).where(eq(userIntegrations.userId, userId)).limit(1);
+  if (!row) return { n8nWebhookUrl: process.env.N8N_WEBHOOK_URL || "", n8nWebhookToken: process.env.N8N_WEBHOOK_TOKEN || "", openrouterApiKey: process.env.OPENROUTER_API_KEY || "", evolutionApiUrl: process.env.EVOLUTION_API_URL || "", evolutionApiKey: process.env.EVOLUTION_API_KEY || "" };
+  return {
+    n8nWebhookUrl: row.n8nWebhookUrl || process.env.N8N_WEBHOOK_URL || "",
+    n8nWebhookToken: decryptSecret(row.n8nWebhookToken) || process.env.N8N_WEBHOOK_TOKEN || "",
+    openrouterApiKey: decryptSecret(row.openrouterApiKey) || process.env.OPENROUTER_API_KEY || "",
+    evolutionApiUrl: row.evolutionApiUrl || process.env.EVOLUTION_API_URL || "",
+    evolutionApiKey: decryptSecret(row.evolutionApiKey) || process.env.EVOLUTION_API_KEY || "",
+  };
+}
+
+export async function saveIntegrationSettings(userId: number, input: IntegrationInput) {
+  const db = await getDb();
+  if (!db) return { success: false };
+  const encrypted: Record<string, string> = {};
+  for (const field of integrationSecretFields) if (input[field]) encrypted[field] = encryptSecret(input[field]!);
+  const plainFields = ["n8nWebhookUrl", "evolutionApiUrl", "hasuraEndpoint"] as const;
+  for (const field of plainFields) if (input[field] !== undefined) encrypted[field] = input[field] || "";
+  await db.insert(userIntegrations).values({ userId, ...encrypted }).onDuplicateKeyUpdate({ set: encrypted });
+  return { success: true };
 }
 
 export async function listLeads(filters: { search?: string; city?: string; state?: string; region?: string; niche?: string; whatsapp?: "valid" | "invalid" | "pending"; minScore?: number }) {

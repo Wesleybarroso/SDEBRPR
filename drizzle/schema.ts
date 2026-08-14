@@ -20,6 +20,7 @@ export const users = mysqlTable("users", {
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
   lastSignedIn: timestamp("lastSignedIn").defaultNow().notNull(),
+  preferences: text("preferences"),
 });
 
 export type User = typeof users.$inferSelect;
@@ -99,5 +100,22 @@ export const integrationEvents = mysqlTable("integration_events", {
   createdAt: timestamp("createdAt").defaultNow().notNull(),
 });
 
+export const userIntegrations = mysqlTable("user_integrations", {
+  id: int("id").autoincrement().primaryKey(),
+  userId: int("userId").notNull().unique(),
+  apifyApiKey: text("apifyApiKey"),
+  n8nWebhookUrl: text("n8nWebhookUrl"),
+  n8nWebhookToken: text("n8nWebhookToken"),
+  openrouterApiKey: text("openrouterApiKey"),
+  evolutionApiUrl: text("evolutionApiUrl"),
+  evolutionApiKey: text("evolutionApiKey"),
+  postgresUrl: text("postgresUrl"),
+  hasuraEndpoint: text("hasuraEndpoint"),
+  hasuraAdminSecret: text("hasuraAdminSecret"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+
 export type SearchRun = typeof searchRuns.$inferSelect;
 export type Lead = typeof leads.$inferSelect;
+export type UserIntegration = typeof userIntegrations.$inferSelect;
