@@ -124,3 +124,7 @@
 
 - [x] Adicionar limite de leads e CEP no card de nova coleta, encaminhando os filtros ao n8n/Apify
 - [x] Refinar o design do card de nova coleta e validar responsividade em desktop, tablet e mobile
+
+- [x] Criar cadastro persistente de modelos de mensagem por usuário, com nome, categoria, texto, variáveis e status ativo
+- [x] Permitir reutilizar modelos no envio manual e encaminhar o conteúdo ao n8n/Evolution Go
+- [x] Adicionar testes e validação responsiva da gestão de modelos

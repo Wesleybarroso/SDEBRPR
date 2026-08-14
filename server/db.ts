@@ -1,6 +1,6 @@
 import { and, desc, eq, like, or, sql } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/mysql2";
-import { InsertUser, conversationMessages, conversations, leads, searchRuns, userIntegrations, userWhatsappNumbers, users } from "../drizzle/schema";
+import { InsertUser, conversationMessages, conversations, leads, messageTemplates, searchRuns, userIntegrations, userWhatsappNumbers, users } from "../drizzle/schema";
 import { ENV } from './_core/env';
 import { isReadyToSend, normalizePhone } from "../shared/leadRules";
 import { deliveryStatusFromEvolution, evolutionStatusUpdate, nextQueueOrder } from "../shared/conversationRules";
@@ -137,6 +137,38 @@ export async function removeIntegrationSetting(userId: number, field: keyof Inte
   const db = await getDb();
   if (!db) return { success: false };
   await db.update(userIntegrations).set({ [field]: null }).where(eq(userIntegrations.userId, userId));
+  return { success: true };
+}
+
+export async function listMessageTemplates(userId: number) {
+  const db = await getDb();
+  if (!db) return [];
+  return db.select().from(messageTemplates).where(eq(messageTemplates.userId, userId)).orderBy(desc(messageTemplates.updatedAt));
+}
+
+export async function getMessageTemplate(userId: number, id: number) {
+  const db = await getDb();
+  if (!db) return undefined;
+  const [row] = await db.select().from(messageTemplates).where(and(eq(messageTemplates.id, id), eq(messageTemplates.userId, userId))).limit(1);
+  return row;
+}
+
+export async function saveMessageTemplate(userId: number, input: { id?: number; name: string; category?: string; body: string; variables?: string; isActive?: boolean }) {
+  const db = await getDb();
+  if (!db) return { success: false };
+  const values = { userId, name: input.name, category: input.category || "prospeccao", body: input.body, variables: input.variables || null, isActive: input.isActive ?? true };
+  if (input.id) {
+    await db.update(messageTemplates).set({ name: values.name, category: values.category, body: values.body, variables: values.variables, isActive: values.isActive }).where(and(eq(messageTemplates.id, input.id), eq(messageTemplates.userId, userId)));
+    return { success: true, id: input.id };
+  }
+  const result = await db.insert(messageTemplates).values(values).$returningId();
+  return { success: true, id: result[0]?.id };
+}
+
+export async function removeMessageTemplate(userId: number, id: number) {
+  const db = await getDb();
+  if (!db) return { success: false };
+  await db.delete(messageTemplates).where(and(eq(messageTemplates.id, id), eq(messageTemplates.userId, userId)));
   return { success: true };
 }
 

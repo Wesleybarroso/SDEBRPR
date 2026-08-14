@@ -5,6 +5,7 @@ const dbMocks = vi.hoisted(() => ({
   reorderConversation: vi.fn(),
   getIntegrationSecrets: vi.fn(),
   getWhatsappNumberSecret: vi.fn(),
+  getMessageTemplate: vi.fn(),
   saveConversationMessage: vi.fn(),
   markConversationMessage: vi.fn(),
 }));
@@ -15,6 +16,7 @@ vi.mock("./db", () => ({
   getDashboardMetrics: vi.fn(),
   getIntegrationSecrets: dbMocks.getIntegrationSecrets,
   getWhatsappNumberSecret: dbMocks.getWhatsappNumberSecret,
+  getMessageTemplate: dbMocks.getMessageTemplate,
   getIntegrationSettings: vi.fn(),
   getLeadQualityMetrics: vi.fn(),
   listConversations: vi.fn(),
@@ -43,6 +45,7 @@ describe("conversations router", () => {
     vi.clearAllMocks();
     dbMocks.getIntegrationSecrets.mockResolvedValue({ n8nWebhookUrl: "https://n8n.test/conversation", n8nWebhookToken: "n8n-token", evolutionApiUrl: "https://evolution.test", evolutionApiKey: "evo-token" });
     dbMocks.getWhatsappNumberSecret.mockResolvedValue(undefined);
+    dbMocks.getMessageTemplate.mockResolvedValue(undefined);
     dbMocks.saveConversationMessage.mockResolvedValue({ id: 12 });
     dbMocks.markConversationMessage.mockResolvedValue({ id: 12, deliveryStatus: "sent" });
   });
@@ -62,10 +65,12 @@ describe("conversations router", () => {
     const dbModule = await import("./db");
     vi.mocked(dbModule.getDb).mockResolvedValue(fakeDb as never);
     dbMocks.getWhatsappNumberSecret.mockResolvedValue({ id: 3, phone: "5511888888888", instanceName: "comercial-03", apiUrl: "https://evolution-03.test", apiKey: "instance-token", keepAlive: true });
+    dbMocks.getMessageTemplate.mockResolvedValue({ id: 9, name: "Primeiro contato" });
     const fetchMock = vi.fn().mockResolvedValue(new Response("{}", { status: 200 }));
     vi.stubGlobal("fetch", fetchMock);
-    await appRouter.createCaller(context()).conversations.send({ conversationId: 7, body: "Mensagem pela instância 3", whatsappNumberId: 3 });
+    await appRouter.createCaller(context()).conversations.send({ conversationId: 7, body: "Mensagem pela instância 3", whatsappNumberId: 3, templateId: 9 });
     const payload = JSON.parse(fetchMock.mock.calls[0]?.[1]?.body as string);
+    expect(payload).toMatchObject({ templateId: 9, templateName: "Primeiro contato" });
     expect(payload.evolution).toMatchObject({ numberId: 3, instanceName: "comercial-03", apiKey: "instance-token", keepAlive: true });
     vi.unstubAllGlobals();
   });

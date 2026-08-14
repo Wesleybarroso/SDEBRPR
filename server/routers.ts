@@ -4,7 +4,7 @@ import { createHeartbeatJob, deleteHeartbeatJob, updateHeartbeatJob } from "./_c
 import { getSessionCookieOptions } from "./_core/cookies";
 import { systemRouter } from "./_core/systemRouter";
 import { publicProcedure, protectedProcedure, router } from "./_core/trpc";
-import { ConversationStage, createSearchRun, getConversationMessages, getDashboardMetrics, getIntegrationSecrets, getIntegrationSettings, getLeadQualityMetrics, getWhatsappNumberSecret, listConversations, listLeads, listWhatsappNumbers, markConversationMessage, moveConversation, reorderConversation, removeIntegrationSetting, removeWhatsappNumber, saveConversationMessage, saveIntegrationSettings, saveUserAvatar, saveWhatsappNumber, setWhatsappActive, setWhatsappDefault, setWhatsappScheduleTaskUid, upsertLead, updateLeadQualification } from "./db";
+import { ConversationStage, createSearchRun, getConversationMessages, getDashboardMetrics, getIntegrationSecrets, getIntegrationSettings, getLeadQualityMetrics, getMessageTemplate, getWhatsappNumberSecret, listConversations, listLeads, listMessageTemplates, listWhatsappNumbers, markConversationMessage, moveConversation, reorderConversation, removeIntegrationSetting, removeMessageTemplate, removeWhatsappNumber, saveConversationMessage, saveIntegrationSettings, saveMessageTemplate, saveUserAvatar, saveWhatsappNumber, setWhatsappActive, setWhatsappDefault, setWhatsappScheduleTaskUid, upsertLead, updateLeadQualification } from "./db";
 import { leadQualifications, leads } from "../drizzle/schema";
 import { z } from "zod";
 import { getDb } from "./db";
@@ -116,7 +116,7 @@ export const appRouter = router({
       await moveConversation(input.conversationId, "contacted");
       return result;
     }),
-    send: protectedProcedure.input(z.object({ conversationId: z.number(), body: z.string().min(1).max(4000), author: z.enum(["ai", "manual"]).default("manual"), whatsappNumberId: z.number().optional() })).mutation(async ({ ctx, input }) => {
+    send: protectedProcedure.input(z.object({ conversationId: z.number(), body: z.string().min(1).max(4000), author: z.enum(["ai", "manual"]).default("manual"), whatsappNumberId: z.number().optional(), templateId: z.number().optional() })).mutation(async ({ ctx, input }) => {
       const db = await getDb();
       const { conversations, leads } = await import("../drizzle/schema");
       const [row] = db ? await db.select({ conversation: conversations, lead: leads }).from(conversations).leftJoin(leads, eq(conversations.leadId, leads.id)).where(eq(conversations.id, input.conversationId)).limit(1) : [];
@@ -124,8 +124,9 @@ export const appRouter = router({
       const pending = await saveConversationMessage({ conversationId: input.conversationId, direction: "outbound", author: input.author, body: input.body, deliveryStatus: "pending" });
       const integration = await getIntegrationSecrets(ctx.user.id);
       const sender = await getWhatsappNumberSecret(ctx.user.id, input.whatsappNumberId);
+      const template = input.templateId ? await getMessageTemplate(ctx.user.id, input.templateId) : undefined;
       if (!integration.n8nWebhookUrl) throw new Error("Configure o webhook do n8n antes de enviar mensagens");
-      const response = await fetch(integration.n8nWebhookUrl, { method: "POST", headers: { "Content-Type": "application/json", ...(integration.n8nWebhookToken ? { Authorization: `Bearer ${integration.n8nWebhookToken}` } : {}) }, body: JSON.stringify({ type: "conversation.message", conversationId: input.conversationId, messageId: pending?.id, leadId: row.lead.id, to: row.lead.phone, text: input.body, author: input.author, evolution: sender ? { numberId: sender.id, phone: sender.phone, instanceName: sender.instanceName, apiUrl: sender.apiUrl, apiKey: sender.apiKey, keepAlive: sender.keepAlive } : { apiUrl: integration.evolutionApiUrl, apiKey: integration.evolutionApiKey } }) });
+      const response = await fetch(integration.n8nWebhookUrl, { method: "POST", headers: { "Content-Type": "application/json", ...(integration.n8nWebhookToken ? { Authorization: `Bearer ${integration.n8nWebhookToken}` } : {}) }, body: JSON.stringify({ type: "conversation.message", conversationId: input.conversationId, messageId: pending?.id, leadId: row.lead.id, to: row.lead.phone, text: input.body, author: input.author, templateId: template?.id, templateName: template?.name, evolution: sender ? { numberId: sender.id, phone: sender.phone, instanceName: sender.instanceName, apiUrl: sender.apiUrl, apiKey: sender.apiKey, keepAlive: sender.keepAlive } : { apiUrl: integration.evolutionApiUrl, apiKey: integration.evolutionApiKey } }) });
       const result = pending ? await markConversationMessage(pending.id, response.ok ? "sent" : "failed") : undefined;
       if (!response.ok) throw new Error(`n8n retornou ${response.status}`);
       return result;
@@ -135,6 +136,11 @@ export const appRouter = router({
     integrations: protectedProcedure.query(({ ctx }) => getIntegrationSettings(ctx.user.id)),
     saveIntegrations: protectedProcedure.input(z.object({ apifyApiKey: z.string().optional(), n8nWebhookUrl: z.string().optional(), n8nWebhookToken: z.string().optional(), openrouterApiKey: z.string().optional(), evolutionApiUrl: z.string().optional(), evolutionApiKey: z.string().optional(), postgresUrl: z.string().optional(), hasuraEndpoint: z.string().optional(), hasuraAdminSecret: z.string().optional() })).mutation(({ ctx, input }) => saveIntegrationSettings(ctx.user.id, input)),
     removeIntegration: protectedProcedure.input(z.object({ field: z.enum(["apifyApiKey", "n8nWebhookUrl", "n8nWebhookToken", "openrouterApiKey", "evolutionApiUrl", "evolutionApiKey", "postgresUrl", "hasuraEndpoint", "hasuraAdminSecret"]) })).mutation(({ ctx, input }) => removeIntegrationSetting(ctx.user.id, input.field)),
+  }),
+  messageTemplates: router({
+    list: protectedProcedure.query(({ ctx }) => listMessageTemplates(ctx.user.id)),
+    save: protectedProcedure.input(z.object({ id: z.number().optional(), name: z.string().min(2).max(120), category: z.string().max(60).default("prospeccao"), body: z.string().min(1).max(4000), variables: z.string().max(500).optional(), isActive: z.boolean().default(true) })).mutation(({ ctx, input }) => saveMessageTemplate(ctx.user.id, input)),
+    remove: protectedProcedure.input(z.object({ id: z.number() })).mutation(({ ctx, input }) => removeMessageTemplate(ctx.user.id, input.id)),
   }),
   searches: router({
     create: protectedProcedure.input(z.object({ niche: z.string().min(2), city: z.string().optional(), state: z.string().optional(), region: z.string().optional(), cep: z.string().regex(/^\d{5}-?\d{3}$/).optional(), leadLimit: z.number().int().min(1).max(500).default(50) })).mutation(async ({ ctx, input }) => {

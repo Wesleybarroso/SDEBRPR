@@ -119,6 +119,19 @@ export const userIntegrations = mysqlTable("user_integrations", {
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
 });
 
+export const messageTemplates = mysqlTable("message_templates", {
+  id: int("id").autoincrement().primaryKey(),
+  userId: int("userId").notNull(),
+  name: varchar("name", { length: 120 }).notNull(),
+  category: varchar("category", { length: 60 }).default("prospeccao").notNull(),
+  body: text("body").notNull(),
+  variables: text("variables"),
+  isActive: boolean("isActive").default(true).notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+
+export type MessageTemplate = typeof messageTemplates.$inferSelect;
 export type SearchRun = typeof searchRuns.$inferSelect;
 export type Lead = typeof leads.$inferSelect;
 export const conversations = mysqlTable("conversations", {
