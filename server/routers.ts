@@ -138,6 +138,24 @@ export const appRouter = router({
     removeIntegration: protectedProcedure.input(z.object({ field: z.enum(["apifyApiKey", "n8nWebhookUrl", "n8nWebhookToken", "openrouterApiKey", "evolutionApiUrl", "evolutionApiKey", "postgresUrl", "hasuraEndpoint", "hasuraAdminSecret"]) })).mutation(({ ctx, input }) => removeIntegrationSetting(ctx.user.id, input.field)),
   }),
   messageTemplates: router({
+    generate: protectedProcedure.input(z.object({ productDescription: z.string().min(10).max(2000), audience: z.string().max(500).optional(), tone: z.enum(["consultivo", "direto", "cordial", "premium"]).default("consultivo"), channel: z.enum(["whatsapp", "email", "instagram"]).default("whatsapp"), offer: z.string().max(500).optional() })).mutation(async ({ ctx, input }) => {
+      const integration = await getIntegrationSecrets(ctx.user.id);
+      if (!integration.openrouterApiKey) throw new Error("Configure a API key do OpenRouter antes de gerar modelos com IA");
+      const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+        method: "POST",
+        headers: { Authorization: `Bearer ${integration.openrouterApiKey}`, "Content-Type": "application/json", "HTTP-Referer": "https://sdebr.manus.space", "X-Title": "SDEBR" },
+        body: JSON.stringify({ model: OPENROUTER_MODEL, temperature: 0.75, response_format: { type: "json_object" }, messages: [
+          { role: "system", content: "Você é um copywriter brasileiro especializado em prospecção B2B responsável. Gere uma mensagem curta, humana e personalizada, sem promessas enganosas, spam, pressão indevida ou afirmações não fornecidas. Retorne somente JSON válido com os campos name, category, body e variables. Use variáveis no formato {nome}, {empresa} e {cidade} quando fizer sentido." },
+          { role: "user", content: JSON.stringify({ productDescription: input.productDescription, audience: input.audience || "Não informado", tone: input.tone, channel: input.channel, offer: input.offer || "Não informado", instructions: "Crie um primeiro contato com CTA leve e uma categoria apropriada. O texto deve ser pronto para revisão antes do envio." }) },
+        ] }),
+      });
+      if (!response.ok) throw new Error(`OpenRouter retornou ${response.status}`);
+      const payload = await response.json() as { choices?: Array<{ message?: { content?: string } }> };
+      const raw = payload.choices?.[0]?.message?.content?.replace(/```json|```/g, "").trim() || "{}";
+      const generated = JSON.parse(raw) as { name?: string; category?: string; body?: string; variables?: string };
+      if (!generated.body) throw new Error("A IA não retornou um texto de mensagem válido");
+      return { name: generated.name || "Modelo gerado por IA", category: generated.category || "prospeccao", body: generated.body.slice(0, 4000), variables: generated.variables || "nome, empresa, cidade" };
+    }),
     list: protectedProcedure.query(({ ctx }) => listMessageTemplates(ctx.user.id)),
     save: protectedProcedure.input(z.object({ id: z.number().optional(), name: z.string().min(2).max(120), category: z.string().max(60).default("prospeccao"), body: z.string().min(1).max(4000), variables: z.string().max(500).optional(), isActive: z.boolean().default(true) })).mutation(({ ctx, input }) => saveMessageTemplate(ctx.user.id, input)),
     remove: protectedProcedure.input(z.object({ id: z.number() })).mutation(({ ctx, input }) => removeMessageTemplate(ctx.user.id, input.id)),
