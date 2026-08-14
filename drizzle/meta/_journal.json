@@ -64,6 +64,13 @@
       "when": 1786719694086,
       "tag": "0008_many_mastermind",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "5",
+      "when": 1786721445188,
+      "tag": "0009_woozy_liz_osborn",
+      "breakpoints": true
     }
   ]
 }

@@ -121,3 +121,6 @@
 - [x] Refinar o card de cadastro de números WhatsApp com melhor hierarquia visual, estados e responsividade
 
 - [x] Adicionar confirmação e estado visual para remover números WhatsApp cadastrados
+
+- [x] Adicionar limite de leads e CEP no card de nova coleta, encaminhando os filtros ao n8n/Apify
+- [x] Refinar o design do card de nova coleta e validar responsividade em desktop, tablet e mobile

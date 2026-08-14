@@ -137,11 +137,11 @@ export const appRouter = router({
     removeIntegration: protectedProcedure.input(z.object({ field: z.enum(["apifyApiKey", "n8nWebhookUrl", "n8nWebhookToken", "openrouterApiKey", "evolutionApiUrl", "evolutionApiKey", "postgresUrl", "hasuraEndpoint", "hasuraAdminSecret"]) })).mutation(({ ctx, input }) => removeIntegrationSetting(ctx.user.id, input.field)),
   }),
   searches: router({
-    create: protectedProcedure.input(z.object({ niche: z.string().min(2), city: z.string().optional(), state: z.string().optional(), region: z.string().optional() })).mutation(async ({ ctx, input }) => {
+    create: protectedProcedure.input(z.object({ niche: z.string().min(2), city: z.string().optional(), state: z.string().optional(), region: z.string().optional(), cep: z.string().regex(/^\d{5}-?\d{3}$/).optional(), leadLimit: z.number().int().min(1).max(500).default(50) })).mutation(async ({ ctx, input }) => {
       const runId = await createSearchRun(input);
       const integration = await getIntegrationSecrets(ctx.user.id);
       if (!integration.n8nWebhookUrl) return { runId, dispatched: false, message: "Busca salva, mas o webhook do n8n não está configurado." };
-      const response = await fetch(integration.n8nWebhookUrl, { method: "POST", headers: { "Content-Type": "application/json", ...(integration.n8nWebhookToken ? { Authorization: `Bearer ${integration.n8nWebhookToken}` } : {}) }, body: JSON.stringify({ searchRunId: runId, niche: input.niche, city: input.city, state: input.state, region: input.region, locationQuery: [input.city, input.state, input.region].filter(Boolean).join(", "), searchStringsArray: [input.niche] }) });
+      const response = await fetch(integration.n8nWebhookUrl, { method: "POST", headers: { "Content-Type": "application/json", ...(integration.n8nWebhookToken ? { Authorization: `Bearer ${integration.n8nWebhookToken}` } : {}) }, body: JSON.stringify({ searchRunId: runId, niche: input.niche, city: input.city, state: input.state, region: input.region, cep: input.cep, leadLimit: input.leadLimit, maxResults: input.leadLimit, locationQuery: [input.cep ? `CEP ${input.cep}` : undefined, input.city, input.state, input.region].filter(Boolean).join(", "), searchStringsArray: [input.niche] }) });
       return { runId, dispatched: response.ok, message: response.ok ? "Coleta enviada ao workflow do n8n." : `n8n retornou ${response.status}.` };
     }),
   }),

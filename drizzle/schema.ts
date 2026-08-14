@@ -33,6 +33,8 @@ export const searchRuns = mysqlTable("search_runs", {
   city: varchar("city", { length: 120 }),
   state: varchar("state", { length: 80 }),
   region: varchar("region", { length: 120 }),
+  cep: varchar("cep", { length: 12 }),
+  leadLimit: int("leadLimit").default(50).notNull(),
   status: mysqlEnum("status", ["draft", "queued", "running", "completed", "failed"]).default("queued").notNull(),
   source: varchar("source", { length: 40 }).default("apify"),
   n8nExecutionId: varchar("n8nExecutionId", { length: 120 }),

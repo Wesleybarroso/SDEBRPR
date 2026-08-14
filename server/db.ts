@@ -292,10 +292,10 @@ export async function getDashboardMetrics() {
   return { total: totalCount, whatsappValid: validCount, qualified: Number(qualified?.count ?? 0), ready: Number(ready?.count ?? 0), validRate: totalCount ? Math.round((validCount / totalCount) * 100) : 0 };
 }
 
-export async function createSearchRun(input: { niche: string; city?: string; state?: string; region?: string }) {
+export async function createSearchRun(input: { niche: string; city?: string; state?: string; region?: string; cep?: string; leadLimit?: number }) {
   const db = await getDb();
   if (!db) return undefined;
-  const result = await db.insert(searchRuns).values(input).$returningId();
+  const result = await db.insert(searchRuns).values({ ...input, leadLimit: input.leadLimit ?? 50 }).$returningId();
   return result[0]?.id;
 }
 
