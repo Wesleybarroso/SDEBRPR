@@ -78,3 +78,21 @@
 - [x] Validar a nova marca em desktop e mobile e executar os testes
 - [x] Completar metadados da aplicação para SDEBR, incluindo descrição e Open Graph quando aplicável
 - [x] Validar visualmente a marca SDEBR também em desktop após a renomeação
+
+- [x] Criar modelo persistente de conversas, mensagens, status kanban e ordem de atendimento
+- [x] Adicionar endpoint/webhook para receber mensagens do n8n/Evolution Go e salvar histórico
+- [x] Criar página Conversas na navbar com kanban de atendimento
+- [x] Exibir mensagens da IA e permitir resposta manual pelo painel
+- [x] Permitir arrastar leads entre colunas e iniciar atendimento por ordem
+- [x] Criar fluxo de resgate para leads desinteressados, com fila e ação de reativação
+- [x] Integrar envio manual e atualização de status ao n8n/Evolution Go usando credenciais do painel
+- [x] Adicionar testes Vitest para mensagens, mudança de estágio, ordem e resgate
+- [x] Validar a central Conversas em desktop e mobile
+- [x] Implementar ordenação real da fila de atendimento com persistência e reordenação entre leads em atendimento
+- [x] Criar ação explícita de reativação para leads na fila de resgate, com estágio e mensagem de retorno
+- [x] Integrar eventos MESSAGES_UPDATE e SEND_MESSAGE_UPDATE da Evolution e usar credenciais salvas para o fluxo de conversas
+- [x] Adicionar testes Vitest para persistência de mensagens, mudança de estágio, ordenação e reativação com mocks
+- [x] Criar testes Vitest mockados para conversations.move, conversations.reorder e conversations.reactivate
+- [x] Criar teste mockado de MESSAGES_UPDATE/SEND_MESSAGE_UPDATE atualizando mensagem por externalId
+- [x] Criar teste Vitest direto de ingestEvolutionMessage para MESSAGES_UPDATE e SEND_MESSAGE_UPDATE com update por externalId
+- [x] Criar teste direto de ingestEvolutionMessage para MESSAGES_UPDATE e SEND_MESSAGE_UPDATE usando updater mockado

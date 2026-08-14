@@ -1,8 +1,9 @@
 import { and, desc, eq, like, or, sql } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/mysql2";
-import { InsertUser, leads, searchRuns, userIntegrations, users } from "../drizzle/schema";
+import { InsertUser, conversationMessages, conversations, leads, searchRuns, userIntegrations, users } from "../drizzle/schema";
 import { ENV } from './_core/env';
 import { isReadyToSend, normalizePhone } from "../shared/leadRules";
+import { deliveryStatusFromEvolution, evolutionStatusUpdate, nextQueueOrder } from "../shared/conversationRules";
 import { decryptSecret, encryptSecret, maskSecret } from "./integrationSecrets";
 import { maskIntegrationRecord } from "../shared/integrationSettings";
 import { storagePut } from "./storage";
@@ -248,4 +249,129 @@ export async function updateLeadQualification(id: number, score: number, status:
   await db.update(leads).set({ qualificationScore: score, qualificationStatus: status, qualificationReason: reason, readyToSend: isReadyToSend({ status, score, whatsappValid: current?.whatsappValid }) }).where(eq(leads.id, id));
   const [row] = await db.select().from(leads).where(eq(leads.id, id)).limit(1);
   return row;
+}
+
+export type ConversationStage = "new" | "contacted" | "waiting" | "interested" | "in_progress" | "not_interested" | "rescue" | "closed";
+
+export async function listConversations(stage?: ConversationStage) {
+  const db = await getDb();
+  if (!db) return [];
+  const missing = await db.select({ id: leads.id }).from(leads).leftJoin(conversations, eq(conversations.leadId, leads.id)).where(sql`${conversations.id} IS NULL`).limit(300);
+  if (missing.length) {
+    try { await db.insert(conversations).values(missing.map(row => ({ leadId: row.id }))); } catch { /* another request may have created the same cards */ }
+  }
+  const condition = stage ? eq(conversations.stage, stage) : undefined;
+  return db.select({ conversation: conversations, lead: leads }).from(conversations).leftJoin(leads, eq(conversations.leadId, leads.id)).where(condition).orderBy(desc(conversations.serviceOrder), desc(conversations.lastMessageAt), desc(conversations.updatedAt)).limit(300);
+}
+
+export async function getConversationMessages(conversationId: number) {
+  const db = await getDb();
+  if (!db) return [];
+  return db.select().from(conversationMessages).where(eq(conversationMessages.conversationId, conversationId)).orderBy(conversationMessages.createdAt);
+}
+
+export async function getOrCreateConversation(leadId: number) {
+  const db = await getDb();
+  if (!db) return undefined;
+  const [existing] = await db.select().from(conversations).where(eq(conversations.leadId, leadId)).limit(1);
+  if (existing) return existing;
+  const created = await db.insert(conversations).values({ leadId }).$returningId();
+  const [conversation] = await db.select().from(conversations).where(eq(conversations.id, created[0]?.id ?? 0)).limit(1);
+  return conversation;
+}
+
+export async function moveConversation(conversationId: number, stage: ConversationStage, serviceOrder?: number) {
+  const db = await getDb();
+  if (!db) return undefined;
+  let nextOrder = serviceOrder;
+  if (stage === "in_progress" && nextOrder === undefined) {
+    const activeRows = await db.select({ serviceOrder: conversations.serviceOrder }).from(conversations).where(eq(conversations.stage, "in_progress"));
+    nextOrder = nextQueueOrder(activeRows.map(row => Number(row.serviceOrder)));
+  }
+  const values: { stage: ConversationStage; serviceOrder?: number; rescueAvailableAt?: Date | null } = { stage };
+  if (nextOrder !== undefined) values.serviceOrder = nextOrder;
+  if (stage === "rescue" || stage === "not_interested") values.rescueAvailableAt = new Date();
+  if (stage !== "rescue" && stage !== "not_interested") values.rescueAvailableAt = null;
+  await db.update(conversations).set(values).where(eq(conversations.id, conversationId));
+  const [row] = await db.select().from(conversations).where(eq(conversations.id, conversationId)).limit(1);
+  return row;
+}
+
+export async function reorderConversation(conversationId: number, direction: "up" | "down") {
+  const db = await getDb();
+  if (!db) return undefined;
+  const [current] = await db.select().from(conversations).where(eq(conversations.id, conversationId)).limit(1);
+  if (!current || current.stage !== "in_progress") return current;
+  const queue = await db.select().from(conversations).where(eq(conversations.stage, "in_progress")).orderBy(desc(conversations.serviceOrder), desc(conversations.updatedAt));
+  const index = queue.findIndex(item => item.id === conversationId);
+  const targetIndex = direction === "up" ? index - 1 : index + 1;
+  if (index < 0 || targetIndex < 0 || targetIndex >= queue.length) return current;
+  const target = queue[targetIndex];
+  await db.update(conversations).set({ serviceOrder: target.serviceOrder }).where(eq(conversations.id, current.id));
+  await db.update(conversations).set({ serviceOrder: current.serviceOrder }).where(eq(conversations.id, target.id));
+  const [updated] = await db.select().from(conversations).where(eq(conversations.id, current.id)).limit(1);
+  return updated;
+}
+
+export async function saveConversationMessage(input: { conversationId: number; externalId?: string; direction: "inbound" | "outbound"; author: "lead" | "ai" | "manual" | "system"; body: string; deliveryStatus?: "pending" | "sent" | "delivered" | "read" | "failed" }) {
+  const db = await getDb();
+  if (!db) return undefined;
+  if (input.externalId) {
+    const [existing] = await db.select().from(conversationMessages).where(eq(conversationMessages.externalId, input.externalId)).limit(1);
+    if (existing) return existing;
+  }
+  const created = await db.insert(conversationMessages).values(input).$returningId();
+  await db.update(conversations).set({ lastMessagePreview: input.body.slice(0, 240), lastMessageAt: new Date(), unreadCount: input.direction === "inbound" ? sql`${conversations.unreadCount} + 1` : 0 }).where(eq(conversations.id, input.conversationId));
+  const [message] = await db.select().from(conversationMessages).where(eq(conversationMessages.id, created[0]?.id ?? 0)).limit(1);
+  return message;
+}
+
+export async function markConversationMessage(messageId: number, deliveryStatus: "pending" | "sent" | "delivered" | "read" | "failed") {
+  const db = await getDb();
+  if (!db) return undefined;
+  await db.update(conversationMessages).set({ deliveryStatus }).where(eq(conversationMessages.id, messageId));
+  const [message] = await db.select().from(conversationMessages).where(eq(conversationMessages.id, messageId)).limit(1);
+  return message;
+}
+
+export async function updateConversationMessageByExternalId(externalId: string, deliveryStatus: "pending" | "sent" | "delivered" | "read" | "failed") {
+  const db = await getDb();
+  if (!db) return undefined;
+  await db.update(conversationMessages).set({ deliveryStatus }).where(eq(conversationMessages.externalId, externalId));
+  const [message] = await db.select().from(conversationMessages).where(eq(conversationMessages.externalId, externalId)).limit(1);
+  return message;
+}
+
+function phoneFromJid(value: unknown) {
+  return String(value ?? "").split("@")[0].replace(/\D/g, "");
+}
+
+export async function applyEvolutionStatusUpdate(payload: Record<string, any>, updater: (externalId: string, deliveryStatus: "pending" | "sent" | "delivered" | "read" | "failed") => Promise<unknown> = updateConversationMessageByExternalId) {
+  const update = evolutionStatusUpdate(payload);
+  if (!update) return { success: true, ignored: true };
+  if (update.externalId) await updater(update.externalId, update.deliveryStatus);
+  return { success: true, updated: Boolean(update.externalId), externalId: update.externalId, deliveryStatus: update.deliveryStatus };
+}
+
+export async function ingestEvolutionMessage(payload: Record<string, any>, statusUpdater: (externalId: string, deliveryStatus: "pending" | "sent" | "delivered" | "read" | "failed") => Promise<unknown> = updateConversationMessageByExternalId) {
+  const event = String(payload.event ?? "");
+  if (event === "MESSAGES_UPDATE" || event === "SEND_MESSAGE_UPDATE") {
+    return applyEvolutionStatusUpdate(payload, statusUpdater);
+  }
+  if (event !== "MESSAGES_UPSERT") return { success: true, ignored: true };
+  const data = payload.data ?? {};
+  const phone = phoneFromJid(data.key?.remoteJid ?? payload.sender);
+  if (!phone) return { success: false, ignored: true, reason: "Telefone ausente" };
+  const db = await getDb();
+  if (!db) return { success: false, ignored: true, reason: "Banco indisponível" };
+  const [lead] = await db.select().from(leads).where(eq(leads.phone, phone)).limit(1);
+  if (!lead) return { success: false, ignored: true, reason: "Lead não encontrado", phone };
+  const conversation = await getOrCreateConversation(lead.id);
+  if (!conversation) return { success: false, ignored: true, reason: "Conversa indisponível" };
+  const body = String(data.message?.conversation ?? data.message?.extendedTextMessage?.text ?? data.message?.imageMessage?.caption ?? "").trim();
+  if (!body) return { success: true, ignored: true, conversationId: conversation.id };
+  const inbound = !Boolean(data.key?.fromMe);
+  const message = await saveConversationMessage({ conversationId: conversation.id, externalId: data.key?.id ? String(data.key.id) : undefined, direction: inbound ? "inbound" : "outbound", author: inbound ? "lead" : "ai", body, deliveryStatus: "sent" });
+  if (inbound && conversation.stage === "new") await moveConversation(conversation.id, "contacted", conversation.serviceOrder);
+  return { success: true, conversationId: conversation.id, messageId: message?.id };
 }

@@ -21,7 +21,7 @@ import {
 } from "@/components/ui/sidebar";
 import { startLogin } from "@/const";
 import { useIsMobile } from "@/hooks/useMobile";
-import { Activity, LayoutDashboard, LogOut, PanelLeft, Users, Sparkles, Settings, UserRound } from "lucide-react";
+import { Activity, LayoutDashboard, LogOut, PanelLeft, Users, Sparkles, Settings, UserRound, MessageCircle } from "lucide-react";
 import { CSSProperties, useEffect, useRef, useState } from "react";
 import { useLocation } from "wouter";
 import { DashboardLayoutSkeleton } from './DashboardLayoutSkeleton';
@@ -32,6 +32,7 @@ const menuItems = [
   { icon: Activity, label: "Qualidade", path: "/qualidade" },
   { icon: Users, label: "Leads", path: "/leads" },
   { icon: Sparkles, label: "Qualificação IA", path: "/qualificacao" },
+  { icon: MessageCircle, label: "Conversas", path: "/conversas" },
   { icon: Settings, label: "Configurações", path: "/configuracoes" },
   { icon: UserRound, label: "Perfil", path: "/perfil" },
 ];

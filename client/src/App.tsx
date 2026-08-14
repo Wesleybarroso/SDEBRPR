@@ -10,6 +10,7 @@ import Qualificacao from "./pages/Qualificacao";
 import Qualidade from "./pages/Qualidade";
 import Configuracoes from "./pages/Configuracoes";
 import Perfil from "./pages/Perfil";
+import Conversas from "./pages/Conversas";
 
 function Router() {
   // make sure to consider if you need authentication for certain routes
@@ -19,6 +20,7 @@ function Router() {
       <Route path={"/leads"} component={Leads} />
       <Route path={"/qualificacao"} component={Qualificacao} />
       <Route path={"/qualidade"} component={Qualidade} />
+      <Route path={"/conversas"} component={Conversas} />
       <Route path={"/configuracoes"} component={Configuracoes} />
       <Route path={"/perfil"} component={Perfil} />
       <Route path={"/404"} component={NotFound} />

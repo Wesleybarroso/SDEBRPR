@@ -119,4 +119,30 @@ export const userIntegrations = mysqlTable("user_integrations", {
 
 export type SearchRun = typeof searchRuns.$inferSelect;
 export type Lead = typeof leads.$inferSelect;
+export const conversations = mysqlTable("conversations", {
+  id: int("id").autoincrement().primaryKey(),
+  leadId: int("leadId").notNull().unique(),
+  stage: mysqlEnum("stage", ["new", "contacted", "waiting", "interested", "in_progress", "not_interested", "rescue", "closed"]).default("new").notNull(),
+  serviceOrder: int("serviceOrder").default(0).notNull(),
+  unreadCount: int("unreadCount").default(0).notNull(),
+  lastMessagePreview: text("lastMessagePreview"),
+  lastMessageAt: timestamp("lastMessageAt"),
+  rescueAvailableAt: timestamp("rescueAvailableAt"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+
+export const conversationMessages = mysqlTable("conversation_messages", {
+  id: int("id").autoincrement().primaryKey(),
+  conversationId: int("conversationId").notNull(),
+  externalId: varchar("externalId", { length: 180 }).unique(),
+  direction: mysqlEnum("direction", ["inbound", "outbound"]).notNull(),
+  author: mysqlEnum("author", ["lead", "ai", "manual", "system"]).notNull(),
+  body: text("body").notNull(),
+  deliveryStatus: mysqlEnum("deliveryStatus", ["pending", "sent", "delivered", "read", "failed"]).default("pending").notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+});
+
 export type UserIntegration = typeof userIntegrations.$inferSelect;
+export type Conversation = typeof conversations.$inferSelect;
+export type ConversationMessage = typeof conversationMessages.$inferSelect;

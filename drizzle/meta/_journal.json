@@ -43,6 +43,13 @@
       "when": 1786716914239,
       "tag": "0005_clumsy_wolverine",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "5",
+      "when": 1786718184867,
+      "tag": "0006_high_clea",
+      "breakpoints": true
     }
   ]
 }

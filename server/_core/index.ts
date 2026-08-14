@@ -7,7 +7,7 @@ import { registerOAuthRoutes } from "./oauth";
 import { registerStorageProxy } from "./storageProxy";
 import { appRouter } from "../routers";
 import { createContext } from "./context";
-import { upsertLead } from "../db";
+import { ingestEvolutionMessage, upsertLead } from "../db";
 import { serveStatic, setupVite } from "./vite";
 
 function isPortAvailable(port: number): Promise<boolean> {
@@ -37,10 +37,22 @@ async function startServer() {
   app.use(express.urlencoded({ limit: "50mb", extended: true }));
   registerStorageProxy(app);
   registerOAuthRoutes(app);
+  app.post("/api/integrations/evolution/messages", async (req, res) => {
+    try {
+      const expected = process.env.EVOLUTION_API_KEY || process.env.N8N_WEBHOOK_TOKEN;
+      const provided = String(req.headers.authorization || req.headers.apikey || "").replace(/^Bearer\s+/i, "");
+      if (expected && provided !== expected) return res.status(401).json({ error: "unauthorized" });
+      const result = await ingestEvolutionMessage(req.body ?? {});
+      return res.status(200).json(result);
+    } catch (error) {
+      console.error("[Evolution] message ingestion failed", error);
+      return res.status(400).json({ success: false, error: "invalid_message_payload" });
+    }
+  });
   app.post("/api/integrations/n8n/leads", async (req, res) => {
     try {
       const expected = process.env.N8N_WEBHOOK_TOKEN;
-      const provided = String(req.headers.authorization || "").replace(/^Bearer\\s+/i, "");
+      const provided = String(req.headers.authorization || "").replace(/^Bearer\s+/i, "");
       if (expected && provided !== expected) return res.status(401).json({ error: "unauthorized" });
       const payload = req.body?.lead ?? req.body;
       const lead = await upsertLead(payload);

@@ -2,7 +2,7 @@ import { COOKIE_NAME } from "@shared/const";
 import { getSessionCookieOptions } from "./_core/cookies";
 import { systemRouter } from "./_core/systemRouter";
 import { publicProcedure, protectedProcedure, router } from "./_core/trpc";
-import { createSearchRun, getDashboardMetrics, getIntegrationSecrets, getIntegrationSettings, getLeadQualityMetrics, listLeads, removeIntegrationSetting, saveIntegrationSettings, saveUserAvatar, upsertLead, updateLeadQualification } from "./db";
+import { ConversationStage, createSearchRun, getConversationMessages, getDashboardMetrics, getIntegrationSecrets, getIntegrationSettings, getLeadQualityMetrics, listConversations, listLeads, markConversationMessage, moveConversation, reorderConversation, removeIntegrationSetting, saveConversationMessage, saveIntegrationSettings, saveUserAvatar, upsertLead, updateLeadQualification } from "./db";
 import { leadQualifications, leads } from "../drizzle/schema";
 import { z } from "zod";
 import { getDb } from "./db";
@@ -67,6 +67,41 @@ export const appRouter = router({
       const escape = (value: unknown) => `"${String(value ?? "").replaceAll('"', '""')}"`;
       const csv = [header.join(","), ...rows.map(row => [row.name, row.phone, row.category, row.city, row.state, row.qualificationScore, row.qualificationStatus, row.website, row.address].map(escape).join(","))].join("\n");
       return { filename: `leadflow-melhores-leads-${new Date().toISOString().slice(0, 10)}.csv`, csv };
+    }),
+  }),
+  conversations: router({
+    list: protectedProcedure.input(z.object({ stage: z.enum(["new", "contacted", "waiting", "interested", "in_progress", "not_interested", "rescue", "closed"]).optional() }).default({})).query(({ input }) => listConversations(input.stage as ConversationStage | undefined)),
+    messages: protectedProcedure.input(z.object({ conversationId: z.number() })).query(({ input }) => getConversationMessages(input.conversationId)),
+    move: protectedProcedure.input(z.object({ conversationId: z.number(), stage: z.enum(["new", "contacted", "waiting", "interested", "in_progress", "not_interested", "rescue", "closed"]), serviceOrder: z.number().optional() })).mutation(({ input }) => moveConversation(input.conversationId, input.stage as ConversationStage, input.serviceOrder)),
+    reorder: protectedProcedure.input(z.object({ conversationId: z.number(), direction: z.enum(["up", "down"]) })).mutation(({ input }) => reorderConversation(input.conversationId, input.direction)),
+    rescue: protectedProcedure.input(z.object({ conversationId: z.number() })).mutation(({ input }) => moveConversation(input.conversationId, "rescue")),
+    reactivate: protectedProcedure.input(z.object({ conversationId: z.number(), body: z.string().max(4000).optional() })).mutation(async ({ ctx, input }) => {
+      const db = await getDb();
+      const { conversations, leads } = await import("../drizzle/schema");
+      const [row] = db ? await db.select({ conversation: conversations, lead: leads }).from(conversations).leftJoin(leads, eq(conversations.leadId, leads.id)).where(eq(conversations.id, input.conversationId)).limit(1) : [];
+      if (!row?.lead) throw new Error("Conversa ou lead não encontrado");
+      const body = input.body?.trim() || "Olá! Passando para saber se este é um bom momento para retomarmos a conversa. Posso ajudar em algo?";
+      const pending = await saveConversationMessage({ conversationId: input.conversationId, direction: "outbound", author: "manual", body, deliveryStatus: "pending" });
+      const integration = await getIntegrationSecrets(ctx.user.id);
+      if (!integration.n8nWebhookUrl) throw new Error("Configure o webhook do n8n antes de reativar leads");
+      const response = await fetch(integration.n8nWebhookUrl, { method: "POST", headers: { "Content-Type": "application/json", ...(integration.n8nWebhookToken ? { Authorization: `Bearer ${integration.n8nWebhookToken}` } : {}) }, body: JSON.stringify({ type: "conversation.reactivate", conversationId: input.conversationId, messageId: pending?.id, leadId: row.lead.id, to: row.lead.phone, text: body, evolution: { apiUrl: integration.evolutionApiUrl, apiKey: integration.evolutionApiKey } }) });
+      const result = pending ? await markConversationMessage(pending.id, response.ok ? "sent" : "failed") : undefined;
+      if (!response.ok) throw new Error(`n8n retornou ${response.status}`);
+      await moveConversation(input.conversationId, "contacted");
+      return result;
+    }),
+    send: protectedProcedure.input(z.object({ conversationId: z.number(), body: z.string().min(1).max(4000), author: z.enum(["ai", "manual"]).default("manual") })).mutation(async ({ ctx, input }) => {
+      const db = await getDb();
+      const { conversations, leads } = await import("../drizzle/schema");
+      const [row] = db ? await db.select({ conversation: conversations, lead: leads }).from(conversations).leftJoin(leads, eq(conversations.leadId, leads.id)).where(eq(conversations.id, input.conversationId)).limit(1) : [];
+      if (!row?.lead) throw new Error("Conversa ou lead não encontrado");
+      const pending = await saveConversationMessage({ conversationId: input.conversationId, direction: "outbound", author: input.author, body: input.body, deliveryStatus: "pending" });
+      const integration = await getIntegrationSecrets(ctx.user.id);
+      if (!integration.n8nWebhookUrl) throw new Error("Configure o webhook do n8n antes de enviar mensagens");
+      const response = await fetch(integration.n8nWebhookUrl, { method: "POST", headers: { "Content-Type": "application/json", ...(integration.n8nWebhookToken ? { Authorization: `Bearer ${integration.n8nWebhookToken}` } : {}) }, body: JSON.stringify({ type: "conversation.message", conversationId: input.conversationId, messageId: pending?.id, leadId: row.lead.id, to: row.lead.phone, text: input.body, author: input.author, evolution: { apiUrl: integration.evolutionApiUrl, apiKey: integration.evolutionApiKey } }) });
+      const result = pending ? await markConversationMessage(pending.id, response.ok ? "sent" : "failed") : undefined;
+      if (!response.ok) throw new Error(`n8n retornou ${response.status}`);
+      return result;
     }),
   }),
   settings: router({
