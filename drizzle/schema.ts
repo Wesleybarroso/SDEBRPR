@@ -1,4 +1,4 @@
-import { int, mysqlEnum, mysqlTable, text, timestamp, varchar } from "drizzle-orm/mysql-core";
+import { boolean, decimal, int, mysqlEnum, mysqlTable, text, timestamp, varchar } from "drizzle-orm/mysql-core";
 
 /**
  * Core user table backing auth flow.
@@ -25,4 +25,79 @@ export const users = mysqlTable("users", {
 export type User = typeof users.$inferSelect;
 export type InsertUser = typeof users.$inferInsert;
 
-// TODO: Add your tables here
+export const searchRuns = mysqlTable("search_runs", {
+  id: int("id").autoincrement().primaryKey(),
+  niche: varchar("niche", { length: 160 }).notNull(),
+  city: varchar("city", { length: 120 }),
+  state: varchar("state", { length: 80 }),
+  region: varchar("region", { length: 120 }),
+  status: mysqlEnum("status", ["draft", "queued", "running", "completed", "failed"]).default("queued").notNull(),
+  source: varchar("source", { length: 40 }).default("apify"),
+  n8nExecutionId: varchar("n8nExecutionId", { length: 120 }),
+  leadsCount: int("leadsCount").default(0).notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+
+export const leads = mysqlTable("leads", {
+  id: int("id").autoincrement().primaryKey(),
+  externalId: varchar("externalId", { length: 180 }),
+  searchRunId: int("searchRunId"),
+  category: varchar("categoria", { length: 160 }),
+  name: varchar("nome", { length: 220 }).notNull(),
+  phone: varchar("telefone", { length: 40 }).notNull().unique(),
+  whatsappValid: boolean("whatsapp_valido"),
+  whatsappJid: varchar("whatsapp_jid", { length: 100 }),
+  stars: decimal("estrelas", { precision: 3, scale: 1 }).default("0"),
+  reviews: int("avaliacoes").default(0),
+  address: text("endereco"),
+  city: varchar("cidade", { length: 120 }),
+  state: varchar("estado", { length: 80 }),
+  region: varchar("regiao", { length: 120 }),
+  status: varchar("status", { length: 60 }).default("Novo").notNull(),
+  campaign: varchar("campanhas", { length: 180 }),
+  hasWebsite: varchar("tem_site", { length: 10 }),
+  website: text("site"),
+  instagram: text("instagram"),
+  facebook: text("facebook"),
+  qualificationStatus: mysqlEnum("qualificationStatus", ["pending", "qualified", "discarded"]).default("pending").notNull(),
+  qualificationScore: int("qualificationScore"),
+  qualificationReason: text("qualificationReason"),
+  readyToSend: boolean("readyToSend").default(false).notNull(),
+  rawData: text("rawData"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+
+export const whatsappChecks = mysqlTable("whatsapp_checks", {
+  id: int("id").autoincrement().primaryKey(),
+  leadId: int("leadId").notNull(),
+  phone: varchar("phone", { length: 40 }).notNull(),
+  isValid: boolean("isValid"),
+  jid: varchar("jid", { length: 100 }),
+  source: varchar("source", { length: 40 }).default("evolution-go"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+});
+
+export const leadQualifications = mysqlTable("lead_qualifications", {
+  id: int("id").autoincrement().primaryKey(),
+  leadId: int("leadId").notNull(),
+  score: int("score").notNull(),
+  status: mysqlEnum("status", ["qualified", "discarded"]).notNull(),
+  reason: text("reason"),
+  model: varchar("model", { length: 120 }),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+});
+
+export const integrationEvents = mysqlTable("integration_events", {
+  id: int("id").autoincrement().primaryKey(),
+  provider: varchar("provider", { length: 40 }).notNull(),
+  eventType: varchar("eventType", { length: 80 }).notNull(),
+  externalId: varchar("externalId", { length: 180 }),
+  payload: text("payload").notNull(),
+  status: varchar("status", { length: 30 }).default("received").notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+});
+
+export type SearchRun = typeof searchRuns.$inferSelect;
+export type Lead = typeof leads.$inferSelect;

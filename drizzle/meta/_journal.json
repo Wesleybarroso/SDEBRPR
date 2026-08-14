@@ -1,5 +1,27 @@
 {
   "version": "7",
   "dialect": "mysql",
-  "entries": []
+  "entries": [
+    {
+      "idx": 0,
+      "version": "5",
+      "when": 1786712092556,
+      "tag": "0000_slippery_leper_queen",
+      "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "5",
+      "when": 1786712824104,
+      "tag": "0001_rare_drax",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "5",
+      "when": 1786713174299,
+      "tag": "0002_acoustic_steel_serpent",
+      "breakpoints": true
+    }
+  ]
 }
