@@ -128,3 +128,9 @@
 - [x] Criar cadastro persistente de modelos de mensagem por usuário, com nome, categoria, texto, variáveis e status ativo
 - [x] Permitir reutilizar modelos no envio manual e encaminhar o conteúdo ao n8n/Evolution Go
 - [x] Adicionar testes e validação responsiva da gestão de modelos
+
+- [ ] Adicionar geração de modelos de mensagem por IA a partir da descrição do produto/serviço
+- [ ] Permitir revisar o texto gerado e transferi-lo para o formulário de modelo antes de salvar
+- [ ] Testar a procedure de IA e validar a interface em desktop e mobile
+
+- [x] Remover a barra lateral visual e aplicar rolagem suave sem bloquear o scroll em desktop e mobile

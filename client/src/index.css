@@ -117,8 +117,25 @@
   * {
     @apply border-border outline-ring/50;
   }
+  html {
+    scroll-behavior: smooth;
+    scrollbar-width: none;
+  }
+
+  html::-webkit-scrollbar {
+    width: 0;
+    height: 0;
+  }
+
   body {
     @apply bg-background text-foreground;
+    scrollbar-width: none;
+    overscroll-behavior-x: none;
+  }
+
+  body::-webkit-scrollbar {
+    width: 0;
+    height: 0;
   }
   button:not(:disabled),
   [role="button"]:not([aria-disabled="true"]),
