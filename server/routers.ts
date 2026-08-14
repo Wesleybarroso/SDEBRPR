@@ -2,7 +2,7 @@ import { COOKIE_NAME } from "@shared/const";
 import { getSessionCookieOptions } from "./_core/cookies";
 import { systemRouter } from "./_core/systemRouter";
 import { publicProcedure, protectedProcedure, router } from "./_core/trpc";
-import { createSearchRun, getDashboardMetrics, getIntegrationSecrets, getIntegrationSettings, listLeads, saveIntegrationSettings, upsertLead, updateLeadQualification } from "./db";
+import { createSearchRun, getDashboardMetrics, getIntegrationSecrets, getIntegrationSettings, getLeadQualityMetrics, listLeads, removeIntegrationSetting, saveIntegrationSettings, upsertLead, updateLeadQualification } from "./db";
 import { leadQualifications, leads } from "../drizzle/schema";
 import { z } from "zod";
 import { getDb } from "./db";
@@ -31,6 +31,7 @@ export const appRouter = router({
   }),
   dashboard: router({
     metrics: protectedProcedure.query(() => getDashboardMetrics()),
+    quality: protectedProcedure.query(() => getLeadQualityMetrics()),
   }),
   leads: router({
     list: protectedProcedure.input(z.object({ search: z.string().optional(), city: z.string().optional(), state: z.string().optional(), region: z.string().optional(), niche: z.string().optional(), whatsapp: z.enum(["valid", "invalid", "pending"]).optional(), minScore: z.number().optional() }).default({})).query(({ input }) => listLeads(input)),
@@ -70,6 +71,7 @@ export const appRouter = router({
   settings: router({
     integrations: protectedProcedure.query(({ ctx }) => getIntegrationSettings(ctx.user.id)),
     saveIntegrations: protectedProcedure.input(z.object({ apifyApiKey: z.string().optional(), n8nWebhookUrl: z.string().optional(), n8nWebhookToken: z.string().optional(), openrouterApiKey: z.string().optional(), evolutionApiUrl: z.string().optional(), evolutionApiKey: z.string().optional(), postgresUrl: z.string().optional(), hasuraEndpoint: z.string().optional(), hasuraAdminSecret: z.string().optional() })).mutation(({ ctx, input }) => saveIntegrationSettings(ctx.user.id, input)),
+    removeIntegration: protectedProcedure.input(z.object({ field: z.enum(["apifyApiKey", "n8nWebhookUrl", "n8nWebhookToken", "openrouterApiKey", "evolutionApiUrl", "evolutionApiKey", "postgresUrl", "hasuraEndpoint", "hasuraAdminSecret"]) })).mutation(({ ctx, input }) => removeIntegrationSetting(ctx.user.id, input.field)),
   }),
   searches: router({
     create: protectedProcedure.input(z.object({ niche: z.string().min(2), city: z.string().optional(), state: z.string().optional(), region: z.string().optional() })).mutation(async ({ ctx, input }) => {

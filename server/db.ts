@@ -119,6 +119,13 @@ export async function getIntegrationSecrets(userId: number) {
   };
 }
 
+export async function removeIntegrationSetting(userId: number, field: keyof IntegrationInput) {
+  const db = await getDb();
+  if (!db) return { success: false };
+  await db.update(userIntegrations).set({ [field]: null }).where(eq(userIntegrations.userId, userId));
+  return { success: true };
+}
+
 export async function saveIntegrationSettings(userId: number, input: IntegrationInput) {
   const db = await getDb();
   if (!db) return { success: false };
@@ -144,6 +151,36 @@ export async function listLeads(filters: { search?: string; city?: string; state
   if (filters.whatsapp === "pending") conditions.push(sql`${leads.whatsappValid} IS NULL`);
   if (filters.minScore !== undefined) conditions.push(sql`COALESCE(${leads.qualificationScore}, 0) >= ${filters.minScore}`);
   return db.select().from(leads).where(conditions.length ? and(...conditions) : undefined).orderBy(desc(leads.qualificationScore), desc(leads.createdAt)).limit(200);
+}
+
+export async function getLeadQualityMetrics() {
+  const db = await getDb();
+  if (!db) return { total: 0, averageScore: 0, bands: { excellent: 0, good: 0, attention: 0, unscored: 0 }, qualification: { qualified: 0, discarded: 0, pending: 0 }, whatsapp: { valid: 0, invalid: 0, pending: 0 }, ready: 0 };
+  const rows = await db.select({ score: leads.qualificationScore, qualificationStatus: leads.qualificationStatus, whatsappValid: leads.whatsappValid, readyToSend: leads.readyToSend }).from(leads);
+  const total = rows.length;
+  const scored = rows.filter(row => row.score !== null && row.score !== undefined);
+  const averageScore = scored.length ? Math.round(scored.reduce((sum, row) => sum + Number(row.score), 0) / scored.length) : 0;
+  return {
+    total,
+    averageScore,
+    bands: {
+      excellent: rows.filter(row => Number(row.score ?? -1) >= 80).length,
+      good: rows.filter(row => Number(row.score ?? -1) >= 60 && Number(row.score ?? -1) < 80).length,
+      attention: rows.filter(row => Number(row.score ?? -1) >= 1 && Number(row.score ?? -1) < 60).length,
+      unscored: rows.filter(row => row.score === null || row.score === undefined).length,
+    },
+    qualification: {
+      qualified: rows.filter(row => row.qualificationStatus === "qualified").length,
+      discarded: rows.filter(row => row.qualificationStatus === "discarded").length,
+      pending: rows.filter(row => !row.qualificationStatus).length,
+    },
+    whatsapp: {
+      valid: rows.filter(row => row.whatsappValid === true).length,
+      invalid: rows.filter(row => row.whatsappValid === false).length,
+      pending: rows.filter(row => row.whatsappValid === null || row.whatsappValid === undefined).length,
+    },
+    ready: rows.filter(row => row.readyToSend === true).length,
+  };
 }
 
 export async function getDashboardMetrics() {

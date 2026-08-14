@@ -51,3 +51,10 @@
 - [x] Criar teste Vitest do gate de autenticação para acesso sem usuário
 - [x] Criar teste mockado da procedure settings.saveIntegrations e settings.integrations cobrindo persistência, atualização e máscara
 - [x] Adicionar cenário de segunda gravação e leitura mascarada no teste da router de configurações
+
+- [x] Criar dashboard dedicado à qualidade dos leads com score, faixas, qualificação, WhatsApp e prontidão
+- [x] Adicionar navegação para o dashboard de qualidade
+- [x] Permitir editar/substituir cada credencial de API individualmente
+- [x] Permitir remover cada credencial de API individualmente com confirmação
+- [x] Cobrir dashboard e remoção individual de credenciais com testes
+- [x] Validar dashboard e configurações em desktop e mobile
