@@ -119,3 +119,5 @@
 - [x] Executar validação visual específica do gerenciador e estados de conexão em desktop e mobile
 
 - [x] Refinar o card de cadastro de números WhatsApp com melhor hierarquia visual, estados e responsividade
+
+- [x] Adicionar confirmação e estado visual para remover números WhatsApp cadastrados
