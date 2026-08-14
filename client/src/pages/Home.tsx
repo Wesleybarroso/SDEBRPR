@@ -51,7 +51,7 @@ export default function Home() {
   return <DashboardLayout>
     <div className="min-h-screen bg-background px-5 py-6 text-foreground md:px-8">
       <header className="mb-8 flex flex-col justify-between gap-4 md:flex-row md:items-end">
-        <div><p className="mb-2 text-[11px] font-semibold uppercase tracking-[0.24em] text-primary">LeadFlow Ops / Central operacional</p><h1 className="font-serif text-4xl tracking-tight text-foreground">Prospecção com clareza.</h1><p className="mt-2 max-w-xl text-sm text-muted-foreground">Capture sinais de intenção, valide contatos e concentre energia nos leads que merecem uma conversa.</p></div>
+        <div><p className="mb-2 text-[11px] font-semibold uppercase tracking-[0.24em] text-primary">SDEBR / Central operacional</p><h1 className="font-serif text-4xl tracking-tight text-foreground">Prospecção com clareza.</h1><p className="mt-2 max-w-xl text-sm text-muted-foreground">Capture sinais de intenção, valide contatos e concentre energia nos leads que merecem uma conversa.</p></div>
         <div className="flex items-center gap-3"><div className="rounded-full border border-border bg-white px-3 py-2 text-xs text-muted-foreground"><span className="mr-2 inline-block h-2 w-2 rounded-full bg-emerald-500" />Sistema conectado</div><Button onClick={downloadCsv} variant="outline" className="border-border bg-white text-foreground hover:bg-indigo-50"><Download className="mr-2 h-4 w-4" />Exportar melhores</Button></div>
       </header>
 

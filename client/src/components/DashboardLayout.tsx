@@ -172,7 +172,7 @@ function DashboardLayoutContent({
               </button>
               {!isCollapsed ? (
                 <div className="flex items-center gap-2 min-w-0">
-                  <div className="min-w-0"><span className="block truncate text-[11px] font-semibold tracking-[0.16em] text-sidebar-foreground">ALTIX / LEADFLOW</span><span className="mt-0.5 block truncate text-[9px] uppercase tracking-[0.18em] text-sidebar-foreground/50">digital operations</span></div>
+                  <div className="min-w-0"><span className="block truncate text-[11px] font-semibold tracking-[0.16em] text-sidebar-foreground">SDEBR / OPS</span><span className="mt-0.5 block truncate text-[9px] uppercase tracking-[0.18em] text-sidebar-foreground/50">digital operations</span></div>
                 </div>
               ) : null}
             </div>

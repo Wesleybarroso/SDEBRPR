@@ -72,3 +72,9 @@
 - [x] Testar saveUserAvatar real com storagePut e update do banco mockados, validando avatarUrl persistido
 - [x] Concluir padronização visual das páginas principais usando tokens compartilhados
 - [x] Executar grep final e remover hex colors legados remanescentes das páginas principais
+
+- [x] Atualizar o título e os metadados da aplicação para SDEBR
+- [x] Renomear a assinatura da navbar, textos do painel e Perfil para SDEBR
+- [x] Validar a nova marca em desktop e mobile e executar os testes
+- [x] Completar metadados da aplicação para SDEBR, incluindo descrição e Open Graph quando aplicável
+- [x] Validar visualmente a marca SDEBR também em desktop após a renomeação
